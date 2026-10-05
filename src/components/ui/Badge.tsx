@@ -1,0 +1,56 @@
+import type { ReactNode } from 'react'
+import { IconTrendDown, IconTrendUp } from '@/components/icons'
+import { cn } from '@/lib/cn'
+
+/** Red count bubble for top bar buttons (DESIGN.md §6.2). */
+export function CountBadge({ count, className }: { count: number; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'grid h-[1.375rem] min-w-[1.375rem] place-items-center rounded-full border-[2.5px] border-white grad-danger px-1.5',
+        'text-[0.6875rem] leading-none font-semibold text-white shadow-badge',
+        className,
+      )}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  )
+}
+
+/** "+20%" / "-10%" change indicator with a trend arrow. */
+export function DeltaBadge({ value, className }: { value: number; className?: string }) {
+  const up = value >= 0
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-sm font-medium [&>svg]:size-3.5',
+        up ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg',
+        className,
+      )}
+    >
+      {up ? <IconTrendUp /> : <IconTrendDown />}
+      {Math.abs(value)}%
+    </span>
+  )
+}
+
+export type PillTone = 'primary' | 'success' | 'warning' | 'info' | 'danger' | 'accent' | 'neutral' | 'gray'
+
+/** Same intent colors as `Button outlined`: full-strength border, readable `-fg` text, soft tint fill. */
+const tones: Record<PillTone, string> = {
+  primary: 'bg-primary-soft border-primary text-primary-fg',
+  success: 'bg-success-bg border-success text-success-fg',
+  warning: 'bg-warning-bg border-warning text-warning-fg',
+  info: 'bg-info-bg border-info text-info-fg',
+  danger: 'bg-danger-bg border-danger text-danger-fg',
+  accent: 'bg-accent-soft border-accent text-accent-dark',
+  neutral: 'bg-surface border-line-strong text-ink-2',
+  gray: 'bg-fill-strong border-muted text-ink-2',
+}
+
+/** Rectangular status label with a border (DESIGN.md §6.7). */
+export function StatusPill({ tone, children }: { tone: PillTone; children: ReactNode }) {
+  return (
+    <span className={cn('inline-flex items-center rounded-md border px-3 py-0.5 text-sm font-medium', tones[tone])}>{children}</span>
+  )
+}

@@ -1,0 +1,375 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (see DESIGN.md §2). Every token becomes a Tailwind utility:
+ *   --color-primary  -> bg-primary / text-primary / border-primary ...
+ *   --radius-card    -> rounded-card
+ *   --shadow-card    -> shadow-card
+ */
+@theme {
+  /* Inter for Latin + numbers; Thai glyphs fall through to Noto Sans Thai. */
+  --font-sans: 'Inter', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Type scale (Orchid Mint preview ratios at a 14px base): text-stat / text-display / text-title / text-body / text-control */
+  --text-stat: 2rem; /* 28px — summary card value */
+  --text-stat--line-height: 1;
+  --text-display: 1.4625rem; /* 20.5px — page + modal title, hero amounts */
+  --text-display--line-height: 1.25;
+  --text-page: 1.875rem; /* 26px — page title (PageHeading, Topbar) */
+  --text-page--line-height: 1.25;
+  --text-title: 1.15rem; /* 16px — card + section title */
+  --text-title--line-height: 1.3;
+  --text-body: 0.9625rem; /* 13.5px — table cells, list rows */
+  --text-body--line-height: 1.45;
+  --text-control: 0.925rem; /* 13px — buttons, tabs, labels, links */
+  --text-control--line-height: 1.35;
+
+  /* Surfaces & text (Apple-like cool neutrals) */
+  --color-bg: #f6eff3;
+  --color-surface: #ffffff;
+  --color-glass: rgb(255 255 255 / 0.74);
+  --color-glass-strong: rgb(255 255 255 / 0.84);
+  --color-glass-edge: rgb(255 255 255 / 0.7);
+  --color-line: rgb(60 60 67 / 0.1);
+  --color-line-strong: rgb(60 60 67 / 0.22);
+  --color-ink: #1d1d1f;
+  --color-ink-2: #3a3a3c;
+  --color-muted: #6e6e73;
+  --color-placeholder: #aeaeb2;
+  --color-dark: #cccccc;
+  --color-dark-hover: #bdbdbd;
+  --color-on-dark: #1d1d1f;
+  --color-fill: rgb(118 118 128 / 0.08);
+  --color-fill-strong: rgb(118 118 128 / 0.16);
+  --color-hover: rgb(255 242 242);
+
+  /* Palette "Orchid Mint" (option C). Theme = brand orchid pink: app identity only (sidebar, summary cards, charts, page light). */
+  --color-theme: #e8457a;
+  --color-theme-hover: #e42563;
+  --color-theme-soft: #fce8ef;
+  --color-theme-soft-hover: #fad6e2;
+  --color-accent: #00d4b4;
+  --color-accent-hover: #00b096;
+  /* Text in accent on white / accent-soft (>= 4.5:1) */
+  --color-accent-dark: #077c6a;
+  --color-accent-soft: #ccf9f2;
+  --color-on-accent: #1d1d1f;
+
+  /*
+   * Component intents (Orchid Mint): primary indigo, success mint-green, danger red, warning orange, info sky.
+   *   X        solid fill            X-hover   flat hover fill
+   *   on-X     text/icons ON the fill (white where it reaches 3:1 for medium-weight labels/icons, otherwise ink)
+   *   X-fg     text in that color on white or on X-bg (>= 4.5:1)
+   *   X-bg     soft tint             X-bg-hover / primary-soft-hover  tint hover
+   */
+  --color-primary: #3d5afe;
+  --color-primary-hover: #2445f5;
+  /* Text on white: #3d5afe already reaches 5.1:1, so fg is the same hue a touch deeper for crisper links */
+  --color-primary-fg: #3450ee;
+  --color-primary-fg-hover: #2238c9;
+  --color-primary-soft: #ebf9ff;
+  --color-primary-soft-hover: #e6f7ff;
+  --color-on-primary: #ffffff;
+  --color-success: #34d399;
+  --color-success-hover: #28bb85;
+  --color-success-fg: #1b7e5a;
+  --color-success-bg: #c3ffe8;
+  --color-success-bg-hover: #d9f7ec;
+  --color-on-success: #1d1d1f;
+  --color-danger: #f04438;
+  --color-danger-hover: #ed2517;
+  --color-danger-fg: #d11c10;
+  --color-danger-bg: #fde9e7;
+  --color-danger-bg-hover: #fcd7d4;
+  --color-on-danger: #ffffff;
+  --color-warning: #f79009;
+  --color-warning-hover: #d57c07;
+  --color-warning-fg: #a05e08;
+  --color-warning-bg: #fef4e6;
+  --color-warning-bg-hover: #feebd3;
+  --color-on-warning: #1d1d1f;
+  --color-info: #0ba5ec;
+  --color-info-hover: #098dca;
+  --color-info-fg: #0975a7;
+  --color-info-bg: #b0fcff;
+  --color-info-bg-hover: #d3f0fd;
+  --color-on-info: #1d1d1f;
+
+  /* Chart */
+  --color-chart-3: #f5d9a8;
+  --color-chart-4: #d8d8de;
+
+  /* Shape */
+  --radius-card: 1.75rem;
+  --radius-control: 0.875rem;
+
+  /* Elevation: low-contrast, layered, never grey-muddy */
+  --shadow-card: 0 1px 1px rgb(0 0 0 / 0.02), 0 4px 12px rgb(0 0 0 / 0.03), 0 16px 40px rgb(0 0 0 / 0.04);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.04), 0 12px 32px rgb(0 0 0 / 0.08), 0 32px 64px rgb(0 0 0 / 0.06);
+  --shadow-modal: 0 4px 16px rgb(0 0 0 / 0.06), 0 24px 80px rgb(0 0 0 / 0.18);
+  --shadow-badge: 0 4px 10px rgb(240 68 56 / 0.35);
+  --shadow-primary: 0 1px 2px rgb(61 90 254 / 0.3), 0 6px 16px -4px rgb(61 90 254 / 0.45);
+  --shadow-theme: 0 1px 2px rgb(232 69 122 / 0.3), 0 8px 20px -6px rgb(232 69 122 / 0.5);
+
+  /* Motion */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pop-in: pop-in 0.24s var(--ease-smooth) backwards;
+  --animate-fade-in: fade-in 0.25s var(--ease-smooth);
+  --animate-fade-in-up: fade-in-up 0.4s var(--ease-smooth) both;
+  --animate-row-in: row-in 0.35s var(--ease-smooth) both;
+  --animate-toast-in: toast-in 0.35s var(--ease-smooth);
+  --animate-fade-out: fade-out 0.56s var(--ease-smooth) forwards;
+  --animate-modal-in: modal-in 0.32s var(--ease-smooth);
+  --animate-modal-out: modal-out 0.6s var(--ease-smooth) forwards;
+  --animate-confirm-in: confirm-in 0.5s var(--ease-smooth);
+  --animate-confirm-out: confirm-out 0.64s var(--ease-smooth) forwards;
+  --animate-pulse-ring: pulse-ring 2s var(--ease-smooth) infinite;
+  --animate-sheet-in-right: sheet-in-right 0.4s var(--ease-smooth);
+  --animate-sheet-in-left: sheet-in-left 0.4s var(--ease-smooth);
+  /* SectionTabs "hop": jump arc with squash & stretch, timed to the 620ms horizontal move */
+  --animate-tab-hop: tab-hop 0.62s cubic-bezier(0.33, 0, 0.67, 1);
+  @keyframes tab-hop {
+    0% { transform: translateY(0) scale(1); }
+    12% { transform: translateY(0) scale(1.35, 0.7); }
+    50% { transform: translateY(-16px) scale(0.85, 1.2); }
+    86% { transform: translateY(0) scale(1.4, 0.65); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  @keyframes sheet-in-right {
+    from { transform: translateX(100%); }
+    to { transform: none; }
+  }
+  @keyframes sheet-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: none; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes modal-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(14px) scale(0.95); }
+  }
+  @keyframes confirm-in {
+    0% { opacity: 0; transform: scale(0.88) translateY(8px); }
+    55% { opacity: 1; transform: scale(1.012) translateY(0); }
+    100% { opacity: 1; transform: none; }
+  }
+  @keyframes confirm-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: scale(0.9); }
+  }
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 4px var(--color-primary-soft); }
+    50% { box-shadow: 0 0 0 7px var(--color-primary-soft); }
+  }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(16px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  :root {
+    /*
+     * Gradients for solid fills (used by the grad-* utilities below). Each one runs 135deg from a lighter,
+     * hue-shifted tint through the token color to a deeper neighbor hue, so the token color stays dominant.
+     */
+    --grad-theme: linear-gradient(135deg, #ff8aa8 0%, #e8457a 52%, #b8329a 100%);
+    --grad-primary: linear-gradient(135deg, #7b8fff 0%, #3d5afe 52%, #3a3fd8 100%);
+    --grad-success: linear-gradient(135deg, #6fe8b8 0%, #34d399 55%, #10b9a0 100%);
+    --grad-danger: linear-gradient(135deg, #ff7a6b 0%, #f04438 55%, #d92d5f 100%);
+    --grad-warning: linear-gradient(135deg, #ffc14d 0%, #f79009 55%, #e8630a 100%);
+    --grad-info: linear-gradient(135deg, #4fd1ff 0%, #0ba5ec 55%, #2563eb 100%);
+    --grad-accent: linear-gradient(135deg, #6ff5d8 0%, #00d4b4 55%, #0099c7 100%);
+    --grad-dark: linear-gradient(135deg, #e0e0e0 0%, #cccccc 55%, #b3b3b3 100%);
+
+    /* One px of the index4.html mockup (2400px design width, scaled to the viewport). Used by the xl app shell. */
+    --mk: calc(100vw / 2400);
+    /* Height of the header band = Topbar logo row (h-16 logo + mb-6). The sidebar rail starts below it, level with the page title. */
+    --header-h: 5.5rem;
+  }
+  html {
+    /* Base size: every rem-based utility scales from this (16px -> 14px). */
+    font-size: 87.5%;
+    /*
+     * Orchid Mint light behind the glass surfaces: orchid pink and mint washes (theme/accent) with a touch of
+     * sunny yellow and indigo. Fixed so it doesn't scroll with content.
+     */
+    background:
+      radial-gradient(56rem 40rem at 0% 0%, rgb(232 69 122 / 0.16), transparent 60%),
+      radial-gradient(60rem 44rem at 100% 0%, rgb(0 212 180 / 0.22), transparent 62%),
+      radial-gradient(56rem 42rem at 0% 100%, rgb(255 210 63 / 0.1), transparent 60%),
+      radial-gradient(68rem 50rem at 100% 100%, rgb(61 90 254 / 0.12), transparent 62%),
+      var(--color-bg);
+    background-attachment: fixed;
+  }
+  body {
+    color: var(--color-ink);
+    /* Light (300) body copy: content, table cells, captions and inputs inherit it; labels/titles opt into 500/600. */
+    font-weight: 300;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Glass surfaces.
+ * glass      – in-flow cards: translucent, no backdrop-filter (that would make every card a stacking context
+ *              and trap dropdowns inside it; the page light behind is smooth, so blur adds nothing there).
+ * glass-blur – floating layers (rail, popovers, modals, top-bar buttons): frosted backdrop.
+ */
+@utility glass {
+  background-color: var(--color-glass);
+  border: 1px solid var(--color-glass-edge);
+}
+@utility glass-blur {
+  background-color: var(--color-glass-strong);
+  border: 1px solid var(--color-glass-edge);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Gradient fills: grad-theme, grad-primary, grad-success, grad-danger, grad-warning, grad-info, grad-accent, grad-dark.
+ * background-color is the flat token as a fallback (and for anything that reads it, e.g. forced colors). */
+@utility grad-theme {
+  background-color: var(--color-theme);
+  background-image: var(--grad-theme);
+  background-origin: border-box;
+}
+@utility grad-primary {
+  background-color: var(--color-primary);
+  background-image: var(--grad-primary);
+  background-origin: border-box;
+}
+@utility grad-success {
+  background-color: var(--color-success);
+  background-image: var(--grad-success);
+  background-origin: border-box;
+}
+@utility grad-danger {
+  background-color: var(--color-danger);
+  background-image: var(--grad-danger);
+  background-origin: border-box;
+}
+@utility grad-warning {
+  background-color: var(--color-warning);
+  background-image: var(--grad-warning);
+  background-origin: border-box;
+}
+@utility grad-info {
+  background-color: var(--color-info);
+  background-image: var(--grad-info);
+  background-origin: border-box;
+}
+@utility grad-accent {
+  background-color: var(--color-accent);
+  background-image: var(--grad-accent);
+  background-origin: border-box;
+}
+@utility grad-dark {
+  background-color: var(--color-dark);
+  background-image: var(--grad-dark);
+  background-origin: border-box;
+}
+
+@layer components {
+  /* Striped fill for inactive chart bars */
+  .bar-stripes {
+    background: repeating-linear-gradient(-55deg, rgb(118 118 128 / 0.12) 0 8px, rgb(118 118 128 / 0.05) 8px 16px);
+  }
+
+  /* ---------- Decorative graphics for solid summary cards (DESIGN.md §6.4) ---------- */
+  .stat-deco {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .stat-deco::before,
+  .stat-deco::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+  }
+  /* Concentric rings from the bottom-right corner */
+  .stat-deco-rings::before {
+    inset: 0;
+    background: repeating-radial-gradient(circle at 100% 100%, transparent 0 22px, rgb(255 255 255 / 0.13) 22px 24px);
+    mask-image: linear-gradient(to left, #000 15%, transparent 70%);
+  }
+  .stat-deco-rings::after {
+    width: 150px;
+    height: 150px;
+    right: -50px;
+    top: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgb(255 255 255 / 0.18), transparent 70%);
+  }
+  /* Flowing wave lines */
+  .stat-deco-waves::before {
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='260' viewBox='0 0 420 260'%3E%3Cg fill='none' stroke='white' stroke-width='2'%3E%3Cpath stroke-opacity='.34' d='M-10 150 C 70 100 150 200 230 150 S 390 100 430 130'/%3E%3Cpath stroke-opacity='.26' d='M-10 180 C 70 130 150 230 230 180 S 390 130 430 160'/%3E%3Cpath stroke-opacity='.18' d='M-10 210 C 70 160 150 260 230 210 S 390 160 430 190'/%3E%3Cpath stroke-opacity='.12' d='M-10 240 C 70 190 150 290 230 240 S 390 190 430 220'/%3E%3C/g%3E%3C/svg%3E")
+      right bottom / 110% auto no-repeat;
+  }
+  .stat-deco-waves::after {
+    width: 120px;
+    height: 120px;
+    right: 24px;
+    top: -50px;
+    border-radius: 50%;
+    border: 2px solid rgb(255 255 255 / 0.2);
+  }
+  /* Dot grid + soft double circle */
+  .stat-deco-dots::before {
+    inset: 0;
+    background: radial-gradient(rgb(255 255 255 / 0.3) 1.4px, transparent 2px) 0 0 / 18px 18px;
+    mask-image: radial-gradient(circle at 100% 0%, #000 0, transparent 60%);
+  }
+  .stat-deco-dots::after {
+    width: 200px;
+    height: 200px;
+    right: -75px;
+    bottom: -100px;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.12);
+    box-shadow: 0 0 0 22px rgb(255 255 255 / 0.06);
+  }
+
+  /* Hide scrollbar but keep scrolling (sidebar rail) */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
