@@ -1,5 +1,5 @@
 import type { PillTone } from '@/components/ui'
-import { bom } from '@/features/procurement/mockData'
+import { activeBomEntries } from '@/features/catalog/store'
 import type { BatchGrade, BatchStatus, FinishedGoodsBatch, ProductionLine, ProductionLineStatus, ProductionOrderStatus, ProductionSource, QcStatus, RawMaterialStock, RmAllocation, RmShortage } from './types'
 
 export const roundQty = (value: number) => Math.round(value * 100) / 100
@@ -68,7 +68,7 @@ export function gradeForYield(yieldRate: number): BatchGrade {
 
 /** BOM x quantity for one finished good. */
 export function rmRequirementFor(finishedGoodId: string, quantity: number): RmAllocation[] {
-  return bom.filter((b) => b.finishedGoodId === finishedGoodId).map((b) => ({ rawMaterialId: b.rawMaterialId, quantity: roundQty(b.quantityPerUnit * quantity) }))
+  return activeBomEntries().filter((b) => b.finishedGoodId === finishedGoodId).map((b) => ({ rawMaterialId: b.rawMaterialId, quantity: roundQty(b.quantityPerUnit * quantity) }))
 }
 
 /** Raw materials whose available stock (on hand - allocated) can't cover the requirement. */

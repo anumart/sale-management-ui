@@ -30,7 +30,7 @@ export function RisksCard({ data }: { data: DashboardData }) {
             detail: data.shortages
               .map((s) => {
                 const rm = rawMaterialById(s.rawMaterialId)
-                return `${rm?.name ?? s.rawMaterialId} ขาด ${formatNumber(roundQty(s.required - s.available))} ${rm?.unit ?? ''}`
+                return `${rm?.nameTh ?? s.rawMaterialId} ขาด ${formatNumber(roundQty(s.required - s.available))} ${rm?.unit ?? ''}`
               })
               .join(' · '),
             to: '/procurement/plans/new/step-1',

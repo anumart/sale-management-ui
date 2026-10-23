@@ -107,31 +107,27 @@ Supplier A (ร้านดอกไม้ใหญ่)
 
 ### Vehicle & Vehicle Route Management
 
-**Scenario**: รถจัดส่ง 1 คัน วิ่งเส้นทางประจำ (Vehicle Route) ที่มีหลาย stop แต่ละวัน
+**Scenario**: เส้นทางประจำ (Vehicle Route) คือลำดับ stop และวันที่วิ่ง ไม่ผูกกับรถ รถที่วิ่งจริงเลือกตอนออกใบวิ่งรถ
 
 ```
-Vehicle A (รถที่ 1)
-├─ ทะเบียน: กข-1234 ฺBangkok
-├─ คนขับ: Mr. Somchai (08x-xxx-xxxx)
-├─ ความจุ: 2,000 Kg
-│
-└─ VehicleRoute A (เส้นทาง A - วิ่งทุกวันจันทร์-ศุกร์)
-   ├─ Stop 1 (ลำดับที่ 1): Supplier A - Route A (Chiang Mai)
-   ├─ Stop 2 (ลำดับที่ 2): Supplier B - Route C (Bangkok)
-   └─ Stop 3 (ลำดับที่ 3): Supplier A - Route B (Nakhon Pathom)
+VehicleRoute A (เส้นทาง A - วิ่งทุกวันจันทร์-ศุกร์)
+├─ Stop 1 (ลำดับที่ 1): Supplier A - Route A (Chiang Mai)
+├─ Stop 2 (ลำดับที่ 2): Supplier B - Route C (Bangkok)
+└─ Stop 3 (ลำดับที่ 3): Supplier A - Route B (Nakhon Pathom)
 
-Vehicle B (รถที่ 2)
-├─ ทะเบียน: กข-5678 Prachuap
-├─ คนขับ: Mr. Niran (086-xxx-xxxx)
-├─ ความจุ: 1,500 Kg
-│
-└─ VehicleRoute B (เส้นทาง B - วิ่งทุกวันจันทร์-ศุกร์)
-   └─ Stop 1 (ลำดับที่ 1): Supplier C - Route C (Prachuap)
+VehicleRoute B (เส้นทาง B - วิ่งทุกวันจันทร์-ศุกร์)
+└─ Stop 1 (ลำดับที่ 1): Supplier C - Route C (Prachuap)
+
+Vehicle A (รถที่ 1): ทะเบียน กข-1234, คนขับ Mr. Somchai, 2,000 Kg
+Vehicle B (รถที่ 2): ทะเบียน กข-5678, คนขับ Mr. Niran, 1,500 Kg
+
+ใบวิ่งรถ 15-Jan: เส้นทาง A + Vehicle A
+ใบวิ่งรถ 16-Jan: เส้นทาง A + Vehicle B   (เปลี่ยนรถได้โดยไม่ต้องแก้เส้นทาง)
 ```
 
 **Key Points**:
 - 1 Vehicle = 1 ทะเบียน, 1 คนขับ, 1 ความจุ
-- 1 Vehicle สามารถมี VehicleRoute หลายเส้นทาง (วันไหนวิ่งเส้นไหน)
+- VehicleRoute ไม่มี vehicleId: รถอย่างไรก็ได้วิ่งเส้นทางไหนก็ได้ และรถ 1 คันวิ่งได้หลายเส้นทาง รถที่วิ่งบันทึกที่ใบวิ่งรถ (`VehicleRunSheet.vehicleId`) ตอนออกใบ
 - 1 VehicleRoute = ลำดับจุดรับสินค้าที่ชัดเจน (Stop 1 → Stop 2 → Stop 3)
 - แต่ละ Stop เป็น SupplierRoute ที่มีอยู่แล้ว (สวนของ Supplier ไหน)
 - Stops ในเส้นทางเดียวกันอาจมาจากคนละ Supplier (ตามเส้นทางจริงของรถ)
@@ -402,7 +398,8 @@ OUTPUT: List of Purchase Orders
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ 1. Select Vehicle & Date                         │
+│ 1. Select Route, Vehicle & Date                  │
+│    - Dropdown: Choose VehicleRoute               │
 │    - Dropdown/List: Choose Vehicle               │
 │    - Date Picker: Select run date                │
 │    - System validates vehicle is active          │
@@ -410,7 +407,7 @@ OUTPUT: List of Purchase Orders
                      ↓
 ┌──────────────────────────────────────────────────┐
 │ 2. Load Vehicle Route & Fetch POs                │
-│    - System finds Vehicle's VehicleRoute         │
+│    - System loads the selected VehicleRoute      │
 │    - Load ordered stops (Stop 1 → Stop 2 → ...) │
 │    - Query: Find all Draft/Confirmed POs whose  │
 │      supplierRouteId matches a stop in route    │
@@ -940,7 +937,7 @@ Trigger options (any of):
 ```
 {
   id: UUID
-  vehicleId: UUID (FK)
+  // No vehicleId: a route is not tied to a vehicle; the vehicle is recorded on the run sheet
   routeName: string (e.g., "Route A - Monday-Friday")
   routeDescription: string (optional)
   daysOfWeek: string (e.g., "Monday,Tuesday,Wednesday,Thursday,Friday" or "1,2,3,4,5")
@@ -1535,13 +1532,12 @@ RawMaterialInventory.
 
 #### Screen 7: Vehicle Routes Management (NEW)
 
-**Path**: `/logistics/vehicles/{vehicleId}/routes`
+**Path**: `/logistics/routes`
 
 **Layout**:
 ```
 ┌──────────────────────────────────────────────────────┐
-│ Vehicle VH-001 (กข-1234) - Routes                    │
-│ Driver: Mr. Somchai | Capacity: 2,000 Kg            │
+│ Routes (not tied to a vehicle)                       │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │ Route Name              Days         Status       │
@@ -1567,9 +1563,9 @@ RawMaterialInventory.
 │ Generate Vehicle Run Sheet                           │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│ Select Vehicle & Date:                              │
-│ Vehicle: [VH-001 - Mr. Somchai] ▼                  │
+│ Select Route, Vehicle & Date:                       │
 │ Route:   [Route A (Mon-Fri)] ▼                     │
+│ Vehicle: [VH-001 - Mr. Somchai] ▼                  │
 │ Date:    [15-Jan-2024] 📅                          │
 │                                                      │
 │ [Search POs for this route]                         │
@@ -2065,10 +2061,10 @@ DELETE /api/vehicles/{id}
 #### Vehicle Routes (NEW)
 
 ```
-GET    /api/vehicles/{vehicleId}/routes
+GET    /api/vehicle-routes
        Response: List<VehicleRoute> with ordered stops
 
-POST   /api/vehicles/{vehicleId}/routes
+POST   /api/vehicle-routes
        Body: {
          routeName: string,
          routeDescription: string,
@@ -2130,7 +2126,7 @@ POST   /api/vehicle-run-sheets/generate
          message: string
        }
        Note: Automatically finds all Draft/Confirmed POs whose
-             supplierRouteId matches a stop in this vehicle's route
+             supplierRouteId matches a stop in the selected route
              Groups POs by stop in sequence order
 
 GET    /api/vehicle-run-sheets
@@ -2518,9 +2514,6 @@ async Task<VehicleRunSheet> GenerateRunSheet(UUID vehicleId, UUID vehicleRouteId
   
   if (vehicleRoute == null || !vehicleRoute.IsActive)
     throw new Exception("Vehicle route not found or inactive");
-  
-  if (vehicleRoute.VehicleId != vehicleId)
-    throw new Exception("Route does not belong to this vehicle");
   
   // Step 2: Load ordered stops for this route
   var routeStops = GetVehicleRouteStops(vehicleRouteId)
@@ -3091,8 +3084,8 @@ SupplierRoute 1 --- N SupplierRouteRawMaterial
 SupplierRoute 1 --- N VehicleRouteStop (reverse: a route stop references this)
 SupplierRoute 1 --- N PurchaseOrder (many POs can pickup from same route)
 
-Vehicle 1 --- N VehicleRoute
 VehicleRoute 1 --- N VehicleRouteStop (ordered)
+Vehicle 1 --- N VehicleRunSheet   (VehicleRoute 1 --- N VehicleRunSheet; the vehicle is chosen when generating the run sheet)
 VehicleRouteStop N --- 1 SupplierRoute (references existing)
 
 PurchaseOrder N --- 1 SupplierRoute (each PO pickup from 1 route)

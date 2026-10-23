@@ -31,6 +31,7 @@ import {
   Card,
   Category,
   Chart,
+  Colorfilter,
   Crown,
   DirectInbox,
   DocumentDownload,
@@ -111,6 +112,7 @@ export const IconHelp = decorative(MessageQuestion)
 export const IconLogout = decorative(Logout)
 export const IconMessage = decorative(Message)
 export const IconBell = decorative(Notification)
+export const IconPalette = decorative(Colorfilter)
 export const IconSearch = decorative(SearchNormal1)
 export const IconPlus = decorative(Add)
 export const IconChevronDown = decorative(ArrowDown2)

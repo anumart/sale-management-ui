@@ -1,7 +1,6 @@
-import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { IconMapPin, IconPlus, IconPower, IconTrash } from '@/components/icons'
+import { IconPlus, IconPower, IconTrash } from '@/components/icons'
 import { Button, Card, CardHeader, DataTable, StatusPill, type DataTableColumn, type PillTone } from '@/components/ui'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
@@ -15,13 +14,9 @@ const statusLabel: Record<VehicleStatus, string> = { active: 'ใช้งาน
 const pageSize = 5
 
 export function VehiclesListPage() {
-  const navigate = useNavigate()
   const vehicles = useLogisticsStore((s) => s.vehicles)
-  const vehicleRoutes = useLogisticsStore((s) => s.vehicleRoutes)
   const toggleVehicleStatus = useLogisticsStore((s) => s.toggleVehicleStatus)
   const [modalOpen, setModalOpen] = useState(false)
-
-  const routeCountFor = (vehicleId: string) => vehicleRoutes.filter((r) => r.vehicleId === vehicleId).length
 
   const handleToggle = async (vehicleId: string, code: string, status: VehicleStatus) => {
     const goingInactive = status === 'active'
@@ -49,7 +44,6 @@ export function VehiclesListPage() {
       sortValue: (v) => v.capacityKg,
       render: (v) => <span className="tabular-nums whitespace-nowrap">{v.capacityKg.toLocaleString()} กก.</span>,
     },
-    { key: 'routes', label: 'เส้นทาง', sortValue: (v) => routeCountFor(v.id), render: (v) => <span className="tabular-nums">{routeCountFor(v.id)}</span> },
     {
       key: 'status',
       label: 'สถานะ',
@@ -64,7 +58,7 @@ export function VehiclesListPage() {
       <Card>
         <CardHeader
           title="รถทั้งหมด"
-          subtitle="รถแต่ละคันมีเส้นทางประจำวันได้ตั้งแต่ 1 เส้นทางขึ้นไป"
+          subtitle="เลือกรถตอนสร้างใบวิ่งรถ รถไม่ผูกกับเส้นทางตายตัว"
           action={
             <Button onClick={() => setModalOpen(true)}>
               <IconPlus />
@@ -82,9 +76,6 @@ export function VehiclesListPage() {
           emptyDescription="เพิ่มรถเพื่อเริ่มต้น"
           renderActions={(v) => (
             <>
-              <Button size="sm" variant="soft" iconOnly outlined aria-label="ดูเส้นทาง" tooltip="ดูเส้นทาง" onClick={() => navigate({ to: '/logistics/routes' })}>
-                <IconMapPin />
-              </Button>
               <Button
                 size="sm"
                 variant={v.status === 'active' ? 'danger' : 'accent'}

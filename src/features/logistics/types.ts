@@ -32,10 +32,9 @@ export interface RouteStop {
   pickupPointId: string
 }
 
-/** A vehicle's fixed daily route: an ordered list of stops, each an existing pickup point. */
+/** A fixed daily route: an ordered list of stops, each an existing pickup point. Not tied to a vehicle — the vehicle is chosen when the run sheet is generated. */
 export interface VehicleRoute {
   id: string
-  vehicleId: string
   routeName: string
   runDays: DayOfWeek[]
   isActive: boolean

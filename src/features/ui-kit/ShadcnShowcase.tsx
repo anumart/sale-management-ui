@@ -446,7 +446,7 @@ function NavigationDemo() {
       <Separator className="my-5" />
       <Label>Kbd</Label>
       <div className="flex flex-col gap-3">
-        <div className="flex h-12 items-center gap-2.5 rounded-control border border-line-strong bg-surface px-4 text-placeholder">
+        <div className="flex h-12 items-center gap-2.5 rounded-control border border-field-edge bg-field px-4 text-placeholder">
           <IconSearch className="size-5" />
           <span className="flex-1">Search…</span>
           <span className="flex gap-1">

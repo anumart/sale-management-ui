@@ -1,60 +1,27 @@
 import type {
-  BomEntry,
-  FinishedGood,
   PlanLine,
   PlanRawMaterial,
   PurchaseOrder,
   PurchasePlan,
-  RawMaterial,
   SalesHistoryRow,
   Supplier,
   SupplierRawMaterial,
   SupplierRoute,
 } from './types'
-
-export const finishedGoods: FinishedGood[] = [
-  { id: 'fg-rose', name: 'ช่อกุหลาบแดง', unit: 'ช่อ' },
-  { id: 'fg-tulip', name: 'ช่อทิวลิป', unit: 'ช่อ' },
-  { id: 'fg-mixed', name: 'แจกันดอกไม้ตามฤดูกาล', unit: 'ชุด' },
-  { id: 'fg-orchid', name: 'กล่องของขวัญกล้วยไม้', unit: 'กล่อง' },
-  { id: 'fg-sunflower', name: 'ช่อทานตะวัน', unit: 'ช่อ' },
-]
-
-export const rawMaterials: RawMaterial[] = [
-  { id: 'rm-rose', name: 'กุหลาบแดง (ก้าน)', unit: 'ก้าน', onHandQuantity: 480 },
-  { id: 'rm-tulip', name: 'ทิวลิป (ก้าน)', unit: 'ก้าน', onHandQuantity: 220 },
-  { id: 'rm-orchid', name: 'กล้วยไม้ (ก้าน)', unit: 'ก้าน', onHandQuantity: 90 },
-  { id: 'rm-sunflower', name: 'ทานตะวัน (ก้าน)', unit: 'ก้าน', onHandQuantity: 150 },
-  { id: 'rm-foam', name: 'โฟมปักดอกไม้', unit: 'ก้อน', onHandQuantity: 40 },
-  { id: 'rm-paper', name: 'กระดาษห่อดอกไม้', unit: 'แผ่น', onHandQuantity: 60 },
-]
-
-export const bom: BomEntry[] = [
-  { finishedGoodId: 'fg-rose', rawMaterialId: 'rm-rose', quantityPerUnit: 12 },
-  { finishedGoodId: 'fg-rose', rawMaterialId: 'rm-paper', quantityPerUnit: 1 },
-  { finishedGoodId: 'fg-rose', rawMaterialId: 'rm-foam', quantityPerUnit: 0.2 },
-
-  { finishedGoodId: 'fg-tulip', rawMaterialId: 'rm-tulip', quantityPerUnit: 10 },
-  { finishedGoodId: 'fg-tulip', rawMaterialId: 'rm-paper', quantityPerUnit: 1 },
-
-  { finishedGoodId: 'fg-mixed', rawMaterialId: 'rm-rose', quantityPerUnit: 4 },
-  { finishedGoodId: 'fg-mixed', rawMaterialId: 'rm-tulip', quantityPerUnit: 4 },
-  { finishedGoodId: 'fg-mixed', rawMaterialId: 'rm-sunflower', quantityPerUnit: 3 },
-  { finishedGoodId: 'fg-mixed', rawMaterialId: 'rm-foam', quantityPerUnit: 0.5 },
-
-  { finishedGoodId: 'fg-orchid', rawMaterialId: 'rm-orchid', quantityPerUnit: 6 },
-  { finishedGoodId: 'fg-orchid', rawMaterialId: 'rm-foam', quantityPerUnit: 0.3 },
-
-  { finishedGoodId: 'fg-sunflower', rawMaterialId: 'rm-sunflower', quantityPerUnit: 8 },
-  { finishedGoodId: 'fg-sunflower', rawMaterialId: 'rm-paper', quantityPerUnit: 1 },
-]
+import { activeBomEntries, useCatalogStore } from '@/features/catalog/store'
+import { formatRouteAddress } from './utils'
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString()
 
 export const initialSuppliers: Supplier[] = [
   {
     id: 'sup-chatuchak',
-    name: 'ตลาดดอกไม้จตุจักร',
+    supplierType: 'individual',
+    title: 'นาย',
+    firstName: 'สมชาย',
+    lastName: 'ตลาดจตุจักร',
+    name: 'นายสมชาย ตลาดจตุจักร',
+    taxId: '3101201234567',
     phone: '02-123-4567',
     email: 'contact@chatuchakflower.co.th',
     contactPerson: 'คุณสมชาย ตลาดจตุจักร',
@@ -64,7 +31,11 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-bkkwholesale',
+    supplierType: 'company',
+    companyName: 'บางกอก ฟลาวเวอร์ ค้าส่ง',
+    branchCode: '00000',
     name: 'บางกอก ฟลาวเวอร์ ค้าส่ง',
+    taxId: '0105561234567',
     phone: '02-234-5678',
     email: 'sales@bkkflowerwholesale.co.th',
     contactPerson: 'คุณมาลี ปากคลอง',
@@ -74,7 +45,11 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-dutch',
+    supplierType: 'company',
+    companyName: 'บริษัท ดัตช์ อิมพอร์ต จำกัด',
+    branchCode: '00000',
     name: 'บริษัท ดัตช์ อิมพอร์ต จำกัด',
+    taxId: '0105559876543',
     phone: '02-345-6789',
     email: 'johan@dutchimport.co.th',
     contactPerson: 'Mr. Johan de Vries',
@@ -84,7 +59,11 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-greenleaf',
+    supplierType: 'company',
+    companyName: 'กรีนลีฟ ซัพพลาย',
+    branchCode: '00001',
     name: 'กรีนลีฟ ซัพพลาย',
+    taxId: '0745562345678',
     phone: '02-456-7890',
     email: 'info@greenleafsupplies.co.th',
     contactPerson: 'คุณธนพล กรีนลีฟ',
@@ -94,7 +73,11 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-patumma',
+    supplierType: 'company',
+    companyName: 'บริษัท ปทุมมาฟาร์ม จำกัด',
+    branchCode: '00000',
     name: 'บริษัท ปทุมมาฟาร์ม จำกัด',
+    taxId: '0505563456789',
     phone: '053-201-4477',
     email: 'contact@pathummafarm.co.th',
     contactPerson: 'คุณสมหญิง ปทุมมา',
@@ -104,7 +87,12 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-klongchan',
-    name: 'สวนพฤกษชาติคลองจั่น',
+    supplierType: 'individual',
+    title: 'นาง',
+    firstName: 'วิภา',
+    lastName: 'คลองจั่น',
+    name: 'นางวิภา คลองจั่น',
+    taxId: '3100502345678',
     phone: '02-731-5588',
     contactPerson: 'คุณวิภา คลองจั่น',
     address: '99/1 ถนนนวมินทร์ แขวงคลองจั่น เขตบางกะปิ กรุงเทพมหานคร 10240',
@@ -113,7 +101,12 @@ export const initialSuppliers: Supplier[] = [
   },
   {
     id: 'sup-banglen',
-    name: 'สวนกล้วยไม้บางเลน',
+    supplierType: 'individual',
+    title: 'นาย',
+    firstName: 'ประยุทธ',
+    lastName: 'บางเลน',
+    name: 'นายประยุทธ บางเลน',
+    taxId: '3730102345678',
     phone: '034-395-2211',
     email: 'banglenorchid@gmail.com',
     contactPerson: 'คุณประยุทธ บางเลน',
@@ -129,130 +122,155 @@ export const initialSupplierRoutes: SupplierRoute[] = [
     supplierId: 'sup-chatuchak',
     routeCode: 'SR-CTK-001',
     routeName: 'จุดรับสินค้าตลาดจตุจักร (หลัก)',
+    addressLine: '8 ซอยพหลโยธิน 32',
+    subdistrict: 'จันทรเกษม',
+    district: 'จตุจักร',
     province: 'กรุงเทพมหานคร',
-    address: '8 ซอยพหลโยธิน 32 แขวงจันทรเกษม เขตจตุจักร กรุงเทพมหานคร 10900',
+    postalCode: '10900',
+    address: formatRouteAddress({ addressLine: '8 ซอยพหลโยธิน 32', subdistrict: 'จันทรเกษม', district: 'จตุจักร', province: 'กรุงเทพมหานคร', postalCode: '10900' }),
+    latitude: 13.8021,
+    longitude: 100.55,
+    directions: 'ประตู 2 ตลาดนัดจตุจักร ฝั่งตรงข้ามสวนจตุจักร',
     contactPerson: 'คุณสมชาย ตลาดจตุจักร',
     phone: '02-123-4567',
     operatingHours: '04:00–09:00 น. (จันทร์, พฤหัสบดี)',
     isActive: true,
     createdAt: day(-600),
-    rawMaterials: [
-      { rawMaterialName: 'กุหลาบแดง (Red Rose)', unit: 'ก้าน', pricePerUnit: 15.5, availableStock: 5000 },
-      { rawMaterialName: 'ทิวลิป (Tulip)', unit: 'ก้าน', pricePerUnit: 14, availableStock: 1200 },
-    ],
   },
   {
     id: 'sr-2',
     supplierId: 'sup-bkkwholesale',
     routeCode: 'SR-BKW-001',
     routeName: 'จุดรับสินค้าปากคลองตลาด',
+    addressLine: '119 ถนนจักรเพชร',
+    subdistrict: 'วังบูรพาภิรมย์',
+    district: 'พระนคร',
     province: 'กรุงเทพมหานคร',
-    address: '119 ถนนจักรเพชร แขวงวังบูรพาภิรมย์ เขตพระนคร กรุงเทพมหานคร 10200',
+    postalCode: '10200',
+    address: formatRouteAddress({ addressLine: '119 ถนนจักรเพชร', subdistrict: 'วังบูรพาภิรมย์', district: 'พระนคร', province: 'กรุงเทพมหานคร', postalCode: '10200' }),
+    latitude: 13.7427,
+    longitude: 100.4968,
+    directions: 'ลานจอดรถหลังตลาดปากคลอง',
     contactPerson: 'คุณมาลี ปากคลอง',
     phone: '02-234-5678',
     operatingHours: '03:00–07:00 น. ทุกวัน',
     isActive: true,
     createdAt: day(-570),
-    rawMaterials: [
-      { rawMaterialName: 'กุหลาบชมพู (Pink Rose)', unit: 'ก้าน', pricePerUnit: 16, availableStock: 3000 },
-      { rawMaterialName: 'ทานตะวัน (Sunflower)', unit: 'ก้าน', pricePerUnit: 13, availableStock: 2500 },
-    ],
   },
   {
     id: 'sr-3',
     supplierId: 'sup-dutch',
     routeCode: 'SR-DIC-001',
     routeName: 'คลังสินค้านำเข้าดัตช์ - บางจาก',
+    addressLine: '99 อาคารดัตช์อิมพอร์ต ถนนสุขุมวิท',
+    subdistrict: 'บางจาก',
+    district: 'พระโขนง',
     province: 'กรุงเทพมหานคร',
-    address: '99 อาคารดัตช์อิมพอร์ต ถนนสุขุมวิท แขวงบางจาก เขตพระโขนง กรุงเทพมหานคร 10260',
+    postalCode: '10260',
+    address: formatRouteAddress({ addressLine: '99 อาคารดัตช์อิมพอร์ต ถนนสุขุมวิท', subdistrict: 'บางจาก', district: 'พระโขนง', province: 'กรุงเทพมหานคร', postalCode: '10260' }),
+    latitude: 13.6862,
+    longitude: 100.6039,
+    directions: 'ท่าขนถ่ายสินค้าด้านหลังอาคาร',
     contactPerson: 'Mr. Johan de Vries',
     phone: '02-345-6789',
     operatingHours: '08:00–17:00 น. จันทร์-ศุกร์',
     isActive: true,
     createdAt: day(-530),
-    rawMaterials: [
-      { rawMaterialName: 'กุหลาบฮอลแลนด์ (Dutch Rose)', unit: 'ก้าน', pricePerUnit: 45, availableStock: 1500 },
-      { rawMaterialName: 'ลิลลี่นำเข้า (Imported Lily)', unit: 'ก้าน', pricePerUnit: 60, availableStock: 700 },
-    ],
   },
   {
     id: 'sr-4',
     supplierId: 'sup-greenleaf',
     routeCode: 'SR-GLS-001',
     routeName: 'คลังบรรจุภัณฑ์สมุทรสาคร',
+    addressLine: '55/3 หมู่ 4 ถนนเอกชัย',
+    subdistrict: 'นาดี',
+    district: 'เมืองสมุทรสาคร',
     province: 'สมุทรสาคร',
-    address: '55/3 หมู่ 4 ถนนเอกชัย ตำบลนาดี อำเภอเมืองสมุทรสาคร จังหวัดสมุทรสาคร 74000',
+    postalCode: '74000',
+    address: formatRouteAddress({ addressLine: '55/3 หมู่ 4 ถนนเอกชัย', subdistrict: 'นาดี', district: 'เมืองสมุทรสาคร', province: 'สมุทรสาคร', postalCode: '74000' }),
+    latitude: 13.5475,
+    longitude: 100.2744,
     contactPerson: 'คุณธนพล กรีนลีฟ',
     phone: '02-456-7890',
     operatingHours: '08:30–17:30 น. จันทร์-เสาร์',
     isActive: true,
     createdAt: day(-490),
-    rawMaterials: [
-      { rawMaterialName: 'โฟมปักดอกไม้ (Floral Foam)', unit: 'ก้อน', pricePerUnit: 45, availableStock: 900 },
-      { rawMaterialName: 'กระดาษห่อดอกไม้ (Wrapping Paper)', unit: 'แผ่น', pricePerUnit: 1.3, availableStock: 6000 },
-    ],
   },
   {
     id: 'sr-5',
     supplierId: 'sup-patumma',
     routeCode: 'SR-PTM-001',
     routeName: 'สวนดอกกุหลาบแม่ริม',
+    addressLine: '45/2 หมู่ 3',
+    subdistrict: 'แม่แรม',
+    district: 'แม่ริม',
     province: 'เชียงใหม่',
-    address: '45/2 หมู่ 3 ตำบลแม่แรม อำเภอแม่ริม จังหวัดเชียงใหม่ 50180',
+    postalCode: '50180',
+    address: formatRouteAddress({ addressLine: '45/2 หมู่ 3', subdistrict: 'แม่แรม', district: 'แม่ริม', province: 'เชียงใหม่', postalCode: '50180' }),
+    latitude: 18.9055,
+    longitude: 98.942,
+    directions: 'ทางเข้าสวนอยู่ก่อนถึงตลาดแม่ริม ป้ายสีเขียว',
     contactPerson: 'คุณสมหญิง ปทุมมา',
     phone: '053-201-4477',
     operatingHours: '06:00–10:00 น. ทุกวัน',
     isActive: true,
     createdAt: day(-300),
-    rawMaterials: [
-      { rawMaterialName: 'กุหลาบแดง (Red Rose)', unit: 'ก้าน', pricePerUnit: 15, availableStock: 4500 },
-      { rawMaterialName: 'กุหลาบขาว (White Rose)', unit: 'ก้าน', pricePerUnit: 15.5, availableStock: 2200 },
-    ],
   },
   {
     id: 'sr-6',
     supplierId: 'sup-patumma',
     routeCode: 'SR-PTM-002',
     routeName: 'สวนคาร์เนชั่นสันทราย',
+    addressLine: '78 หมู่ 5',
+    subdistrict: 'สันนาเม็ง',
+    district: 'สันทราย',
     province: 'เชียงใหม่',
-    address: '78 หมู่ 5 ตำบลสันนาเม็ง อำเภอสันทราย จังหวัดเชียงใหม่ 50210',
+    postalCode: '50210',
+    address: formatRouteAddress({ addressLine: '78 หมู่ 5', subdistrict: 'สันนาเม็ง', district: 'สันทราย', province: 'เชียงใหม่', postalCode: '50210' }),
+    latitude: 18.857,
+    longitude: 99.042,
     contactPerson: 'คุณประเสริฐ สันทราย',
     phone: '053-884-2200',
     operatingHours: '06:30–10:30 น. ทุกวัน',
     isActive: true,
     createdAt: day(-280),
-    rawMaterials: [{ rawMaterialName: 'คาร์เนชั่น (Carnation)', unit: 'ก้าน', pricePerUnit: 12, availableStock: 4000 }],
   },
   {
     id: 'sr-7',
     supplierId: 'sup-klongchan',
     routeCode: 'SR-KLC-001',
     routeName: 'สวนพฤกษชาติคลองจั่น',
+    addressLine: '99/1 ถนนนวมินทร์',
+    subdistrict: 'คลองจั่น',
+    district: 'บางกะปิ',
     province: 'กรุงเทพมหานคร',
-    address: '99/1 ถนนนวมินทร์ แขวงคลองจั่น เขตบางกะปิ กรุงเทพมหานคร 10240',
+    postalCode: '10240',
+    address: formatRouteAddress({ addressLine: '99/1 ถนนนวมินทร์', subdistrict: 'คลองจั่น', district: 'บางกะปิ', province: 'กรุงเทพมหานคร', postalCode: '10240' }),
+    latitude: 13.784,
+    longitude: 100.635,
     contactPerson: 'คุณวิภา คลองจั่น',
     phone: '02-731-5588',
     operatingHours: '06:00–11:00 น. ทุกวัน (นัดหมายล่วงหน้า)',
     isActive: true,
     createdAt: day(-180),
-    rawMaterials: [
-      { rawMaterialName: 'ทานตะวัน (Sunflower)', unit: 'ดอก', pricePerUnit: 14, availableStock: 800 },
-      { rawMaterialName: 'บัวหลวง (Lotus)', unit: 'ดอก', pricePerUnit: 8, availableStock: 1200 },
-      { rawMaterialName: 'กล้วยไม้ (Orchid)', unit: 'ช่อ', pricePerUnit: 25, availableStock: 300 },
-    ],
   },
   {
     id: 'sr-8',
     supplierId: 'sup-banglen',
     routeCode: 'SR-BGL-001',
     routeName: 'สวนกล้วยไม้บางเลน',
+    addressLine: '12 หมู่ 6',
+    subdistrict: 'บางเลน',
+    district: 'บางเลน',
     province: 'นครปฐม',
-    address: '12 หมู่ 6 ตำบลบางเลน อำเภอบางเลน จังหวัดนครปฐม 73130',
+    postalCode: '73130',
+    address: formatRouteAddress({ addressLine: '12 หมู่ 6', subdistrict: 'บางเลน', district: 'บางเลน', province: 'นครปฐม', postalCode: '73130' }),
+    latitude: 14.015,
+    longitude: 100.16,
     contactPerson: 'คุณประยุทธ บางเลน',
     phone: '034-395-2211',
     isActive: false,
     createdAt: day(-720),
-    rawMaterials: [{ rawMaterialName: 'กล้วยไม้แคทลียา (Cattleya Orchid)', unit: 'ช่อ', pricePerUnit: 30, availableStock: 0 }],
   },
 ]
 
@@ -288,18 +306,18 @@ export function suppliersFor(rawMaterialId: string): SupplierRawMaterial[] {
 }
 
 export function rawMaterialById(id: string) {
-  return rawMaterials.find((r) => r.id === id)
+  return useCatalogStore.getState().rawMaterials.find((r) => r.id === id)
 }
 
 export function finishedGoodById(id: string) {
-  return finishedGoods.find((f) => f.id === id)
+  return useCatalogStore.getState().finishedGoods.find((f) => f.id === id)
 }
 
 /** Sum(plannedQuantity x BOM quantityPerUnit) for every raw material touched by the given lines. */
 export function computeRequiredQuantities(lines: PlanLine[]): Map<string, number> {
   const required = new Map<string, number>()
   for (const line of lines) {
-    const entries = bom.filter((b) => b.finishedGoodId === line.finishedGoodId)
+    const entries = activeBomEntries().filter((b) => b.finishedGoodId === line.finishedGoodId)
     for (const entry of entries) {
       const prev = required.get(entry.rawMaterialId) ?? 0
       required.set(entry.rawMaterialId, prev + entry.quantityPerUnit * line.plannedQuantity)

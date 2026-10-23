@@ -18,10 +18,12 @@ export function GenerateRunSheetPage() {
   const generateRunSheet = useLogisticsStore((s) => s.generateRunSheet)
 
   const [vehicleId, setVehicleId] = useState('')
+  const [routeId, setRouteId] = useState('')
   const [runDate, setRunDate] = useState(today)
 
   const activeVehicles = vehicles.filter((v) => v.status === 'active')
-  const route = useMemo(() => vehicleRoutes.find((r) => r.vehicleId === vehicleId && r.isActive), [vehicleRoutes, vehicleId])
+  const activeRoutes = useMemo(() => vehicleRoutes.filter((r) => r.isActive), [vehicleRoutes])
+  const route = useMemo(() => activeRoutes.find((r) => r.id === routeId), [activeRoutes, routeId])
 
   const preview = useMemo(() => {
     if (!route) return []
@@ -38,9 +40,9 @@ export function GenerateRunSheetPage() {
   const grandTotal = matchedStops.reduce((sum, s) => sum + s.orders.reduce((s2, o) => s2 + o.orderedQuantity * o.pricePerUnit, 0), 0)
 
   const handleGenerate = () => {
-    const runSheet = generateRunSheet(vehicleId, new Date(runDate).toISOString())
+    const runSheet = generateRunSheet(vehicleId, routeId, new Date(runDate).toISOString())
     if (!runSheet) {
-      toast.error(route ? 'ยังไม่มีใบสั่งซื้อค้างที่ตรงกับเส้นทางของรถคันนี้' : 'รถคันนี้ยังไม่มีเส้นทางที่ใช้งาน')
+      toast.error('ยังไม่มีใบสั่งซื้อค้างที่ตรงกับเส้นทางนี้')
       return
     }
     toast.success(`สร้าง ${runSheet.runSheetNumber} แล้ว มี ${runSheet.stops.length} จุดจอด`)
@@ -53,12 +55,20 @@ export function GenerateRunSheetPage() {
         section="Logistics"
         parent={runSheetsParent}
         title="สร้างใบวิ่งรถ"
-        subtitle="เลือกรถและวันที่ ระบบจะรวมใบสั่งซื้อที่ตรงกันตามจุดจอดให้อัตโนมัติ"
+        subtitle="เลือกเส้นทาง รถ และวันที่ ระบบจะรวมใบสั่งซื้อที่ตรงกันตามจุดจอดให้อัตโนมัติ"
       />
 
       <Card className="mb-6">
         <CardHeader title="รายละเอียดการวิ่งรถ" />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Select
+            label="เส้นทาง"
+            required
+            placeholder="เลือกเส้นทาง..."
+            value={routeId}
+            onChange={(e) => setRouteId(e.target.value)}
+            options={activeRoutes.map((r) => ({ value: r.id, label: r.routeName }))}
+          />
           <Select
             label="รถ"
             required
@@ -69,7 +79,6 @@ export function GenerateRunSheetPage() {
           />
           <TextField label="วันที่วิ่ง" required type="date" value={runDate} onChange={(e) => setRunDate(e.target.value)} />
         </div>
-        {vehicleId && !route && <p className="mt-3 text-sm text-danger-fg">รถคันนี้ยังไม่มีเส้นทางที่ใช้งาน กรุณากำหนดเส้นทางที่แท็บเส้นทางรถก่อน</p>}
       </Card>
 
       {route && (
@@ -126,7 +135,7 @@ export function GenerateRunSheetPage() {
             <p className="text-base font-semibold">
               Total: <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
             </p>
-            <Button disabled={matchedStops.length === 0} onClick={handleGenerate}>
+            <Button disabled={!vehicleId || matchedStops.length === 0} onClick={handleGenerate}>
               สร้างและพิมพ์ใบวิ่งรถ
             </Button>
           </footer>

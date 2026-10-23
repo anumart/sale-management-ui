@@ -103,7 +103,7 @@ export function PlanDetailPage({ planId }: PlanDetailPageProps) {
   })
 
   const columns: DataTableColumn<RawMaterialRow>[] = [
-    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => (r.material?.name ?? '').toLowerCase(), render: (r) => <span className="font-medium">{r.material?.name}</span> },
+    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => (r.material?.nameTh ?? '').toLowerCase(), render: (r) => <span className="font-medium">{r.material?.nameTh}</span> },
     {
       key: 'required',
       label: 'ต้องใช้',

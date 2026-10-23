@@ -21,7 +21,6 @@ export const initialVehicles: Vehicle[] = [
 export const initialVehicleRoutes: VehicleRoute[] = [
   {
     id: 'vr-1',
-    vehicleId: 'v-1',
     routeName: 'เส้นทาง A (วนเหนือ)',
     runDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     isActive: true,
@@ -33,7 +32,6 @@ export const initialVehicleRoutes: VehicleRoute[] = [
   },
   {
     id: 'vr-2',
-    vehicleId: 'v-2',
     routeName: 'เส้นทาง B (วนใต้)',
     runDays: ['Mon', 'Wed', 'Fri'],
     isActive: true,

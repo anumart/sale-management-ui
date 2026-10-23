@@ -1,5 +1,5 @@
 import type { PillTone } from '@/components/ui'
-import type { PoStatus } from './types'
+import type { PoStatus, SupplierRoute, SupplierType } from './types'
 
 const monthNames = [
   'มกราคม',
@@ -50,4 +50,41 @@ export const poStatusLabel: Record<PoStatus, string> = {
   confirmed: 'ยืนยันแล้ว',
   received: 'รับของแล้ว',
   cancelled: 'ยกเลิก',
+}
+
+export const supplierTypeLabel: Record<SupplierType, string> = {
+  individual: 'บุคคลธรรมดา',
+  company: 'นิติบุคคล',
+}
+
+/** Display name for an individual: honorific + first + last name. */
+export const individualDisplayName = (title: string | undefined, firstName: string, lastName: string) =>
+  `${title ?? ''}${firstName} ${lastName}`.trim()
+
+/** 13-digit national ID / corporate tax ID. */
+export const isValidTaxId = (value: string) => /^\d{13}$/.test(value)
+
+/** Latitude/longitude range check (coordinates arrive as form text). */
+export const isValidLatitude = (value: number) => Number.isFinite(value) && value >= -90 && value <= 90
+export const isValidLongitude = (value: number) => Number.isFinite(value) && value >= -180 && value <= 180
+
+/** Full pickup address text composed from the split address fields. */
+export function formatRouteAddress(parts: Pick<SupplierRoute, 'addressLine' | 'subdistrict' | 'district' | 'province' | 'postalCode'>) {
+  const isBangkok = parts.province === 'กรุงเทพมหานคร'
+  return [
+    parts.addressLine,
+    `${isBangkok ? 'แขวง' : 'ตำบล'}${parts.subdistrict}`,
+    `${isBangkok ? 'เขต' : 'อำเภอ'}${parts.district}`,
+    isBangkok ? parts.province : `จังหวัด${parts.province}`,
+    parts.postalCode,
+  ]
+    .filter((part) => part.trim() && !/^(แขวง|ตำบล|เขต|อำเภอ)$/.test(part))
+    .join(' ')
+}
+
+/** Google Maps link for a pickup route: the saved link, else built from coordinates, else undefined. */
+export function routeMapUrl(route: Pick<SupplierRoute, 'mapUrl' | 'latitude' | 'longitude'>) {
+  if (route.mapUrl) return route.mapUrl
+  if (route.latitude == null || route.longitude == null) return undefined
+  return `https://www.google.com/maps?q=${route.latitude},${route.longitude}`
 }

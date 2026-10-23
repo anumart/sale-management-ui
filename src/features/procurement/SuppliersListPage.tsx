@@ -8,6 +8,7 @@ import { toast } from '@/stores/toastStore'
 import { AddSupplierModal } from './AddSupplierModal'
 import { useProcurementStore } from './store'
 import type { Supplier } from './types'
+import { supplierTypeLabel } from './utils'
 
 const pageSize = 5
 
@@ -35,7 +36,23 @@ export function SuppliersListPage() {
   }
 
   const columns: DataTableColumn<Supplier>[] = [
-    { key: 'name', label: 'ซัพพลายเออร์', sortValue: (s) => s.name.toLowerCase(), render: (s) => <span className="font-medium">{s.name}</span> },
+    {
+      key: 'name',
+      label: 'ซัพพลายเออร์',
+      sortValue: (s) => s.name.toLowerCase(),
+      render: (s) => (
+        <>
+          <p className="font-medium">{s.name}</p>
+          {s.taxId && <p className="text-sm text-muted">{s.supplierType === 'company' ? 'เลขผู้เสียภาษี' : 'เลขบัตร'} {s.taxId}</p>}
+        </>
+      ),
+    },
+    {
+      key: 'type',
+      label: 'ประเภท',
+      sortValue: (s) => s.supplierType,
+      render: (s) => <StatusPill tone={s.supplierType === 'company' ? 'info' : 'gray'}>{supplierTypeLabel[s.supplierType]}</StatusPill>,
+    },
     { key: 'contactPerson', label: 'ผู้ติดต่อ', sortValue: (s) => s.contactPerson.toLowerCase(), render: (s) => <span className="whitespace-nowrap">{s.contactPerson}</span> },
     { key: 'phone', label: 'โทรศัพท์', sortValue: (s) => s.phone, render: (s) => <span className="whitespace-nowrap">{s.phone}</span> },
     {

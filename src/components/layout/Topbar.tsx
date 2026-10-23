@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { IconMessage } from '@/components/icons'
 import { IconButton } from '@/components/ui'
+import { AppearanceMenu } from '@/features/appearance/components/AppearanceMenu'
 import { useMe } from '@/features/auth/api'
 import { NotificationMenu } from '@/features/notifications/components/NotificationMenu'
 import { cn } from '@/lib/cn'
@@ -33,11 +34,12 @@ export function Topbar({ title, subtitle = 'ภาพรวมข้อมูล
           '-mx-5 -mt-7 px-5 pt-7 pb-4 sm:-mx-8 sm:px-8',
           'xl:mt-[calc(var(--mk)*-36)] xl:mr-[calc(var(--mk)*-52)] xl:ml-[calc(var(--mk)*-211)] xl:pt-[calc(var(--mk)*20)] xl:pr-[calc(var(--mk)*52)] xl:pl-[calc(var(--mk)*47)]',
           'transition-[background-color,border-color,box-shadow] duration-300 ease-smooth',
-          scrolled && 'border-line bg-white/85 shadow-[0_8px_24px_-16px_rgb(0_0_0/0.18)] backdrop-blur-xl backdrop-saturate-150',
+          // Follows the chosen glass style (fill, edge, blur) instead of a fixed white
+          scrolled && 'border-glass-edge bg-glass-strong shadow-[0_8px_24px_-16px_rgb(0_0_0/0.18)] [-webkit-backdrop-filter:var(--glass-filter)] [backdrop-filter:var(--glass-filter)]',
         )}
       >
         <div className="-ml-5 flex min-w-0 items-center gap-6">
-          {/* White halo lifts the logo off the pink-to-mint header tint (the bar turns white once scrolled). */}
+          {/* White halo lifts the logo off the peach-to-violet header gradient (the bar turns white once scrolled). */}
           <img
             src="/logo-e33f4f-v2.png"
             alt="Bangkok Flower"
@@ -46,14 +48,15 @@ export function Topbar({ title, subtitle = 'ภาพรวมข้อมูล
           {tabs}
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          <AppearanceMenu />
           <IconButton icon={<IconMessage />} count={2} aria-label="ข้อความ ยังไม่อ่าน 2 รายการ" />
           <NotificationMenu />
         </div>
       </header>
       {!tabs && (
         <div className="mb-6 min-w-0">
-          <h1 className="text-page font-medium tracking-tight">{title ?? `สวัสดี คุณ${me?.name.split(' ')[0] ?? ''}`}</h1>
-          {subtitle && <p className="mt-1 text-control text-muted">{subtitle}</p>}
+          <h1 className="text-page font-medium tracking-tight text-heading">{title ?? `สวัสดี คุณ${me?.name.split(' ')[0] ?? ''}`}</h1>
+          {subtitle && <p className="mt-1 text-control text-heading-muted">{subtitle}</p>}
         </div>
       )}
     </>

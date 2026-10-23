@@ -27,7 +27,7 @@ export function RadioGroup<V extends string>({ value, onChange, options, variant
               variant === 'card' &&
                 cn(
                   'rounded-control border p-4 transition-colors duration-200 ease-smooth',
-                  checked ? 'border-primary bg-primary-soft' : 'border-line-strong bg-surface hover:border-primary',
+                  checked ? 'border-primary bg-primary-soft' : 'border-field-edge bg-field hover:border-primary',
                 ),
             )}
           >
@@ -39,7 +39,7 @@ export function RadioGroup<V extends string>({ value, onChange, options, variant
               disabled={o.disabled}
               onChange={() => onChange(o.value)}
               className={cn(
-                'mt-px size-5 shrink-0 cursor-pointer appearance-none rounded-full border-[1.5px] border-line-strong bg-surface transition-[border-color,box-shadow] duration-200 ease-smooth',
+                'mt-px size-5 shrink-0 cursor-pointer appearance-none rounded-full border-[1.5px] border-field-edge bg-field transition-[border-color,box-shadow] duration-200 ease-smooth',
                 'hover:border-primary checked:border-primary checked:shadow-[inset_0_0_0_3.5px_var(--color-surface),inset_0_0_0_10px_var(--color-primary)]',
               )}
             />

@@ -35,7 +35,7 @@ export function RunSheetsCard({ data }: { data: DashboardData }) {
               <Link
                 to="/logistics/run-sheets/$runSheetId"
                 params={{ runSheetId: r.id }}
-                className="flex items-center gap-3.5 rounded-control border border-line bg-surface p-3.5 transition-colors hover:bg-hover"
+                className="flex items-center gap-3.5 rounded-control border border-field-edge bg-field p-3.5 transition-colors hover:bg-hover"
               >
                 <span className="grid size-10 shrink-0 place-items-center rounded-full bg-theme-soft text-theme [&>svg]:size-5">
                   <IconTruck />

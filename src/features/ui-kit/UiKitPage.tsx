@@ -35,11 +35,11 @@ import {
   TextArea,
   TextField,
 } from '@/components/ui'
+import { StatCard } from '@/features/dashboard/components/StatCard'
 import { AddPropertyModal } from '@/features/properties/components/AddPropertyModal'
 import { cn } from '@/lib/cn'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
-import { SectionTabsShowcase } from './SectionTabsShowcase'
 import { ShadcnShowcase } from './ShadcnShowcase'
 
 /** Living style guide: every shared control in one place. */
@@ -48,7 +48,7 @@ export function UiKitPage() {
     <>
       <Topbar title="UI Kit" subtitle="Shared components from src/components/ui" />
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-        <SectionTabsShowcase />
+        <SummaryCardsShowcase />
         <ButtonsShowcase />
         <ModalShowcase />
         <FormControlsShowcase />
@@ -57,6 +57,22 @@ export function UiKitPage() {
         <ShadcnShowcase />
       </div>
     </>
+  )
+}
+
+/** Summary (stat) cards: the four solid variants with their decorative graphics, plus the glass `plain` variant. */
+function SummaryCardsShowcase() {
+  return (
+    <section className="xl:col-span-2">
+      <h2 className="mb-3 text-title font-semibold text-ink">Summary Cards</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard variant="theme" label="ยอดขายวันนี้" value="฿128,400" hint="+8% จากเมื่อวาน" icon={<IconReceipt />} />
+        <StatCard variant="accent" label="จัดส่งสำเร็จ" value="42" hint="จาก 48 ออเดอร์" icon={<IconTruck />} />
+        <StatCard variant="primary" label="สินค้าในคลัง" value="1,256" hint="อัปเดตล่าสุด 09:30" icon={<IconBox />} />
+        <StatCard variant="warning" label="รอดำเนินการ" value="17" hint="ต้องตรวจสอบ 3 รายการ" icon={<IconWarning />} />
+        <StatCard variant="plain" label="ลูกค้าใหม่" value="9" hint="เดือนนี้" icon={<IconCheck />} />
+      </div>
+    </section>
   )
 }
 
@@ -231,7 +247,7 @@ function PromoCard() {
   return (
     <article className="stat-deco stat-deco-dots min-w-0 rounded-card grad-dark p-6 text-on-dark shadow-card xl:p-7">
       <h3 className="text-title font-semibold">Unlock Premium Reports</h3>
-      <p className="mt-2 text-sm text-ink-2">Get access to exclusive analytics and expand your procurement insights</p>
+      <p className="mt-2 text-sm text-on-dark/80">Get access to exclusive analytics and expand your procurement insights</p>
       <Button variant="accent" className="mt-5">
         Upgrade now <IconArrowUpRight />
       </Button>
@@ -354,7 +370,7 @@ function ButtonsShowcase() {
         </Row>
         <Row label="Group">
           <SegmentedControl
-            variant="light"
+            variant="aurora"
             aria-label="Period"
             value={period}
             onChange={setPeriod}
@@ -393,7 +409,7 @@ function ModalShowcase() {
             key={t.id}
             type="button"
             onClick={() => setOpen(t.id)}
-            className="flex items-center gap-4 rounded-[1.25rem] border border-line bg-surface p-4 text-left transition hover:-translate-y-0.5 hover:border-primary hover:shadow-card"
+            className="flex items-center gap-4 rounded-[1.25rem] border border-field-edge bg-field p-4 text-left transition hover:-translate-y-0.5 hover:border-primary hover:shadow-card"
           >
             <span className={cn('grid size-12 shrink-0 place-items-center rounded-2xl [&>svg]:size-6', t.tint)}>{t.icon}</span>
             <span>

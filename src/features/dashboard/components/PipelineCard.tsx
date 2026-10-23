@@ -60,7 +60,7 @@ export function PipelineCard({ data }: { data: DashboardData }) {
                 to={s.to}
                 className={cn(
                   'flex h-full min-w-0 flex-1 flex-col rounded-control border p-3.5 transition-colors',
-                  hot ? 'border-warning/50 bg-warning-bg hover:bg-warning-bg-hover' : 'border-line bg-surface hover:bg-hover',
+                  hot ? 'border-warning/50 bg-warning-bg hover:bg-warning-bg-hover' : 'border-field-edge bg-field hover:bg-hover',
                 )}
               >
                 <span className="flex items-center gap-2 text-sm text-ink-2 [&>svg]:size-4 [&>svg]:shrink-0">

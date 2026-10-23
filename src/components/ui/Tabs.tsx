@@ -34,7 +34,7 @@ export function Tabs<V extends string>({ value, onChange, items, variant = 'pill
       <div
         role="tablist"
         onKeyDown={onKeyDown}
-        className={cn('inline-flex', variant === 'pill' ? 'gap-0.5 rounded-control bg-fill p-1' : 'w-full gap-6 border-b border-line')}
+        className={cn('inline-flex', variant === 'pill' ? 'gap-0.5 rounded-full border border-field-edge bg-field p-1' : 'w-full gap-6 border-b border-line')}
       >
         {items.map((item) => {
           const selected = item.value === value
@@ -52,8 +52,8 @@ export function Tabs<V extends string>({ value, onChange, items, variant = 'pill
                 'text-control whitespace-nowrap transition-[background-color,color,box-shadow,border-color] duration-200 ease-smooth',
                 variant === 'pill'
                   ? cn(
-                      'h-9 rounded-[0.625rem] px-4',
-                      selected ? 'bg-surface font-medium text-ink shadow-[0_1px_3px_rgb(0_0_0/0.1),0_1px_1px_rgb(0_0_0/0.04)]' : 'text-muted hover:text-ink',
+                      'h-9 rounded-full px-4',
+                      selected ? 'bg-seg-on font-semibold text-seg-on-ink shadow-seg' : 'text-muted hover:text-ink',
                     )
                   : cn('-mb-px border-b-2 pb-3', selected ? 'border-primary font-medium text-primary-fg' : 'border-transparent text-muted hover:text-ink'),
               )}

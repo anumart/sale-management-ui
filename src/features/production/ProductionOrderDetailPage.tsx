@@ -172,7 +172,7 @@ export function ProductionOrderDetailPage({ orderId }: ProductionOrderDetailPage
                 const variance = actual !== null ? roundQty(actual - a.quantity) : null
                 return (
                   <tr key={a.rawMaterialId}>
-                    <td className="rounded-l-[0.875rem] border-y border-l border-line py-3 pr-3 pl-3.5 font-medium">{material?.name}</td>
+                    <td className="rounded-l-[0.875rem] border-y border-l border-line py-3 pr-3 pl-3.5 font-medium">{material?.nameTh}</td>
                     <td className={order.status === 'completed' ? 'border-y border-line py-3 pr-3 tabular-nums' : 'rounded-r-[0.875rem] border-y border-r border-line py-3 pr-3.5 tabular-nums'}>
                       {roundQty(a.quantity)} {material?.unit}
                     </td>
@@ -257,13 +257,13 @@ export function ProductionOrderDetailPage({ orderId }: ProductionOrderDetailPage
                     const material = rawMaterialById(a.rawMaterialId)
                     return (
                       <tr key={a.rawMaterialId}>
-                        <td className="rounded-l-[0.875rem] border-y border-l border-line py-3 pr-3 pl-3.5 font-medium">{material?.name}</td>
+                        <td className="rounded-l-[0.875rem] border-y border-l border-line py-3 pr-3 pl-3.5 font-medium">{material?.nameTh}</td>
                         <td className="border-y border-line py-3 pr-3 tabular-nums">{roundQty(a.quantity)} {material?.unit}</td>
                         <td className="rounded-r-[0.875rem] border-y border-r border-line py-3 pr-3.5">
                           <TextField
                             type="number"
                             min={0}
-                            aria-label={`${material?.name} ที่ใช้จริง`}
+                            aria-label={`${material?.nameTh} ที่ใช้จริง`}
                             value={actualRmUsed[a.rawMaterialId] ?? ''}
                             onChange={(e) => setActualRmUsed((prev) => ({ ...prev, [a.rawMaterialId]: e.target.value }))}
                             containerClassName="mb-0 w-28"

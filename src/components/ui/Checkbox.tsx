@@ -19,7 +19,7 @@ export function Checkbox({ label, indeterminate = false, className, ...props }: 
       ref={ref}
       type="checkbox"
       className={cn(
-        'relative size-5 shrink-0 cursor-pointer appearance-none rounded-md border-[1.5px] border-line-strong bg-surface transition-colors duration-200 ease-smooth',
+        'relative size-5 shrink-0 cursor-pointer appearance-none rounded-md border-[1.5px] border-field-edge bg-field transition-colors duration-200 ease-smooth',
         'hover:border-primary checked:border-primary checked:grad-primary indeterminate:border-primary indeterminate:grad-primary',
         "checked:after:absolute checked:after:top-[2.5px] checked:after:left-[6px] checked:after:h-2.5 checked:after:w-[0.3125rem] checked:after:rotate-45 checked:after:border-r-2 checked:after:border-b-2 checked:after:border-white checked:after:content-['']",
         "indeterminate:after:absolute indeterminate:after:top-[0.4688rem] indeterminate:after:right-1 indeterminate:after:left-1 indeterminate:after:h-0.5 indeterminate:after:bg-white indeterminate:after:content-['']",

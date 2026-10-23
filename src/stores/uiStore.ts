@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 /** Ids of popover menus. Only one can be open at a time. */
-export type MenuId = 'notifications' | 'profile'
+export type MenuId = 'notifications' | 'profile' | 'appearance'
 
 interface UiState {
   openMenu: MenuId | null

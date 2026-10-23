@@ -7,30 +7,31 @@ export type ButtonVariant = 'primary' | 'success' | 'warning' | 'info' | 'danger
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-white shadow-primary hover:bg-primary-hover',
-  success: 'bg-success text-on-success hover:bg-success-hover',
-  warning: 'bg-warning text-on-warning hover:bg-warning-hover',
-  info: 'bg-info text-on-info hover:bg-info-hover',
-  accent: 'bg-accent text-on-accent hover:bg-accent-hover',
-  dark: 'bg-dark text-on-dark hover:bg-dark-hover',
-  soft: 'bg-primary-soft text-primary-fg hover:bg-primary-soft-hover',
-  outline: 'bg-surface text-ink border border-line-strong hover:border-primary hover:text-primary-fg',
-  ghost: 'bg-transparent text-primary-fg hover:bg-primary-soft',
-  danger: 'bg-danger text-white hover:bg-danger-hover',
+  primary: 'grad-primary text-white shadow-primary hover:brightness-110',
+  success: 'grad-success text-on-success hover:brightness-95',
+  warning: 'grad-warning text-on-warning hover:brightness-95',
+  info: 'grad-info text-on-info hover:brightness-95',
+  accent: 'grad-accent text-on-accent hover:brightness-95',
+  // Glass controls: translucent fill + tinted edge, follow the chosen glass style (--color-field*)
+  dark: 'bg-field text-ink border-field-edge hover:bg-fill',
+  soft: 'bg-field text-ink border-field-edge hover:bg-fill',
+  outline: 'bg-field text-ink border border-field-edge hover:border-primary hover:text-primary-fg',
+  ghost: 'bg-transparent text-ink hover:bg-fill',
+  danger: 'grad-danger text-white hover:brightness-110',
 }
 
-/** `outlined`: same intent color as a 1px border + text on a white surface, tinted on hover. */
+/** `outlined`: same intent color as a 1px border + text on a glass field, tinted on hover. */
 const outlinedVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-surface border border-primary text-primary-fg hover:bg-primary-soft',
-  success: 'bg-surface border border-success text-success-fg hover:bg-success-bg',
-  warning: 'bg-surface border border-warning text-warning-fg hover:bg-warning-bg',
-  info: 'bg-surface border border-info text-info-fg hover:bg-info-bg',
-  accent: 'bg-surface border border-accent text-accent-dark hover:bg-accent-soft',
-  dark: 'bg-surface border border-line-strong text-ink hover:bg-fill',
-  soft: 'bg-surface border border-line-strong text-ink-2 hover:border-primary hover:text-primary-fg',
+  primary: 'bg-field border border-primary text-primary-fg hover:bg-primary-soft',
+  success: 'bg-field border border-success text-success-fg hover:bg-success-bg',
+  warning: 'bg-field border border-warning text-warning-fg hover:bg-warning-bg',
+  info: 'bg-field border border-info text-info-fg hover:bg-info-bg',
+  accent: 'bg-field border border-accent text-accent-dark hover:bg-accent-soft',
+  dark: variants.dark,
+  soft: variants.soft,
   outline: variants.outline,
   ghost: variants.ghost,
-  danger: 'bg-surface border border-danger text-danger-fg hover:bg-danger-bg',
+  danger: 'bg-field border border-danger text-danger-fg hover:bg-danger-bg',
 }
 
 const sizes: Record<ButtonSize, string> = {
@@ -84,7 +85,7 @@ export function Button({
       aria-busy={loading || undefined}
       className={cn(
         'inline-flex shrink-0 items-center justify-center border-2 border-transparent font-medium whitespace-nowrap',
-        iconOnly ? 'rounded-control' : 'rounded-full',
+        'rounded-control',
         'transition-[background-color,color,border-color,transform,box-shadow] duration-300 ease-smooth',
         'active:not-disabled:scale-[0.97] active:not-disabled:duration-100',
         'disabled:cursor-not-allowed disabled:opacity-45',

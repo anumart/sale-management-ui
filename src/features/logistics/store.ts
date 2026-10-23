@@ -114,7 +114,8 @@ interface LogisticsState {
   removeStopFromRoute: (routeId: string, stopId: string) => void
   moveStop: (routeId: string, stopId: string, direction: 'up' | 'down') => void
 
-  generateRunSheet: (vehicleId: string, runDate: string) => RunSheet | null
+  /** The vehicle is picked here (not stored on the route); `vehicleRouteId` is the route being run. */
+  generateRunSheet: (vehicleId: string, vehicleRouteId: string, runDate: string) => RunSheet | null
   printRunSheet: (runSheetId: string) => void
   /** Explicit "Driver Returned — Start Receipt" action: printed → in_progress. No-op unless currently printed. */
   startReceipt: (runSheetId: string) => void
@@ -170,8 +171,8 @@ export const useLogisticsStore = create<LogisticsState>((set, get) => ({
       }),
     }),
 
-  generateRunSheet: (vehicleId, runDate) => {
-    const route = get().vehicleRoutes.find((r) => r.vehicleId === vehicleId && r.isActive)
+  generateRunSheet: (vehicleId, vehicleRouteId, runDate) => {
+    const route = get().vehicleRoutes.find((r) => r.id === vehicleRouteId && r.isActive)
     if (!route) return null
 
     const matchedIds = new Set<string>()
@@ -195,9 +196,13 @@ export const useLogisticsStore = create<LogisticsState>((set, get) => ({
 
     if (stops.length === 0) return null
 
+    // One vehicle can run several routes on the same day, so keep the number unique
+    const numberBase = `RS-${new Date(runDate).toISOString().slice(0, 10).replace(/-/g, '')}-${get().vehicles.find((v) => v.id === vehicleId)?.code ?? vehicleId}`
+    const sameDay = get().runSheets.filter((rs) => rs.runSheetNumber === numberBase || rs.runSheetNumber.startsWith(`${numberBase}-`)).length
+
     const runSheet: RunSheet = {
       id: `rs-${Date.now()}`,
-      runSheetNumber: `RS-${new Date(runDate).toISOString().slice(0, 10).replace(/-/g, '')}-${get().vehicles.find((v) => v.id === vehicleId)?.code ?? vehicleId}`,
+      runSheetNumber: sameDay === 0 ? numberBase : `${numberBase}-${sameDay + 1}`,
       vehicleId,
       vehicleRouteId: route.id,
       runDate,

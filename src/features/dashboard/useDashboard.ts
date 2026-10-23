@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useLogisticsStore } from '@/features/logistics/store'
-import { finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
 import { useProcurementStore } from '@/features/procurement/store'
 import { useProductionStore } from '@/features/production/store'
 import type { RmAllocation } from '@/features/production/types'
@@ -84,7 +84,7 @@ export function useDashboard() {
     const shortages = rmShortages(requirement, rmStock)
 
     // Finished goods
-    const stock = finishedGoods.map((fg) => ({ fg, ...fgPosition(batches, fg.id) }))
+    const stock = getFinishedGoods().map((fg) => ({ fg, ...fgPosition(batches, fg.id) }))
     const availableUnits = stock.reduce((sum, s) => sum + s.available, 0)
     const liveLots = batches.filter((b) => b.remainingQuantity > 0 && b.status !== 'expired' && b.status !== 'depleted')
     const expiring = liveLots.filter((b) => new Date(b.expirationDate).getTime() - now < EXPIRY_DAYS * DAY)

@@ -90,7 +90,7 @@ export function DateRangeField({ label, startDate, endDate, onChange, containerC
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
-          'flex h-12 w-full items-center gap-2.5 rounded-control border bg-surface px-4 text-left text-base transition-colors duration-200 ease-smooth',
+          'flex h-12 w-full items-center gap-2.5 rounded-control border bg-field px-4 text-left text-base transition-colors duration-200 ease-smooth',
           open ? 'border-primary shadow-[0_0_0_4px_var(--color-primary-soft)]' : 'border-line-strong hover:border-primary',
         )}
       >

@@ -59,7 +59,7 @@ export function PlansListPage() {
           subtitle="แต่ละแผนใช้ได้ครั้งเดียวต่อรอบการจัดซื้อ"
           action={
             <div className="flex flex-wrap items-center gap-2.5">
-              <label className="flex h-11 w-56 items-center gap-2 rounded-full border border-line-strong bg-surface px-4 text-muted focus-within:border-primary">
+              <label className="flex h-11 w-56 items-center gap-2 rounded-full border border-field-edge bg-field px-4 text-muted focus-within:border-primary">
                 <IconSearch className="size-5 shrink-0" />
                 <span className="sr-only">ค้นหาแผน</span>
                 <input

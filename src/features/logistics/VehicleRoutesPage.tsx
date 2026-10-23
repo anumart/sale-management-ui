@@ -28,7 +28,7 @@ function RouteStops({ route }: { route: VehicleRoute }) {
       {stops.map((stop, i) => {
         const point = pickupPointById(stop.pickupPointId)
         return (
-          <div key={stop.id} className="flex items-center gap-3 rounded-control border border-line bg-surface p-3.5">
+          <div key={stop.id} className="flex items-center gap-3 rounded-control border border-field-edge bg-field p-3.5">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-semibold text-primary-fg">
               {stop.sequence}
             </span>
@@ -97,57 +97,44 @@ function RouteStops({ route }: { route: VehicleRoute }) {
 }
 
 export function VehicleRoutesPage() {
-  const vehicles = useLogisticsStore((s) => s.vehicles)
   const vehicleRoutes = useLogisticsStore((s) => s.vehicleRoutes)
-  const [routeModalVehicle, setRouteModalVehicle] = useState<{ id: string; code: string } | null>(null)
+  const [routeModalOpen, setRouteModalOpen] = useState(false)
 
   return (
     <>
       <PageHeading section="ขนส่ง" title="เส้นทางรถ" />
 
-      <div className="flex flex-col gap-6">
-        {vehicles.map((vehicle) => {
-          const routes = vehicleRoutes.filter((r) => r.vehicleId === vehicle.id)
-          return (
-            <Card key={vehicle.id}>
-              <CardHeader
-                title={`${vehicle.code} · ${vehicle.licensePlate}`}
-                subtitle={`คนขับ: ${vehicle.driverName}`}
-                action={
-                  <Button variant="outline" onClick={() => setRouteModalVehicle({ id: vehicle.id, code: vehicle.code })}>
-                    <IconPlus />
-                    เพิ่มเส้นทาง
-                  </Button>
-                }
-              />
+      <Card>
+        <CardHeader
+          title="เส้นทางทั้งหมด"
+          subtitle="เส้นทางคือลำดับจุดรับสินค้าและวันที่วิ่ง ไม่ผูกกับรถ เลือกรถตอนสร้างใบวิ่งรถ"
+          action={
+            <Button variant="outline" onClick={() => setRouteModalOpen(true)}>
+              <IconPlus />
+              เพิ่มเส้นทาง
+            </Button>
+          }
+        />
 
-              {routes.length === 0 && <p className="text-muted">รถคันนี้ยังไม่มีเส้นทาง</p>}
+        {vehicleRoutes.length === 0 && <p className="text-muted">ยังไม่มีเส้นทาง</p>}
 
-              <div className="flex flex-col gap-6">
-                {routes.map((route) => (
-                  <div key={route.id} className="border-t border-line pt-5 first:border-t-0 first:pt-0">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-base font-medium">{route.routeName}</h3>
-                        <p className="text-sm text-muted">วิ่งวัน: {route.runDays.map((d) => dayLabel[d]).join(', ')}</p>
-                      </div>
-                      <StatusPill tone={route.isActive ? 'success' : 'neutral'}>{route.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}</StatusPill>
-                    </div>
-                    <RouteStops route={route} />
-                  </div>
-                ))}
+        <div className="flex flex-col gap-6">
+          {vehicleRoutes.map((route) => (
+            <div key={route.id} className="border-t border-line pt-5 first:border-t-0 first:pt-0">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-medium">{route.routeName}</h3>
+                  <p className="text-sm text-muted">วิ่งวัน: {route.runDays.map((d) => dayLabel[d]).join(', ')}</p>
+                </div>
+                <StatusPill tone={route.isActive ? 'success' : 'neutral'}>{route.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}</StatusPill>
               </div>
-            </Card>
-          )
-        })}
-      </div>
+              <RouteStops route={route} />
+            </div>
+          ))}
+        </div>
+      </Card>
 
-      <AddRouteModal
-        open={routeModalVehicle !== null}
-        onClose={() => setRouteModalVehicle(null)}
-        vehicleId={routeModalVehicle?.id ?? null}
-        vehicleCode={routeModalVehicle?.code}
-      />
+      <AddRouteModal open={routeModalOpen} onClose={() => setRouteModalOpen(false)} />
     </>
   )
 }

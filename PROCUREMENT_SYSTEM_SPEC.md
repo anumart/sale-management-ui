@@ -60,25 +60,74 @@ Update PO Status & Close Run Sheet
 **SupplierRoute** = สวน/สถานที่ส่งสินค้า (e.g., "Route A - Chiang Mai")  
 - Each Supplier can have multiple Routes
 - Each Route has a location, contact person, phone
-- Each Route may have different raw materials at different prices
+- Raw materials and prices belong to the **Supplier** (`SupplierRawMaterial`), not to the Route — all routes of a supplier share the same catalog; the route only says where to pick up
 
-**SupplierRouteRawMaterial** = Raw material available at a specific route  
-- Same RM may have different prices across routes of the same supplier
+**Supplier types** (`supplierType`):
+| Type | Meaning | Type-specific fields |
+|---|---|---|
+| `individual` | บุคคลธรรมดา (e.g. a farmer) | `title`, `firstName`, `lastName` |
+| `company` | นิติบุคคล | `companyName`, `branchCode` (5 digits, `00000` = head office) |
+
+Common fields: `name` (display name, derived: individual = title+first+last, company = companyName), `contactPerson` (the person themself for individual), `phone`, `email?`, `address` (registered/head-office), `taxId?` (13-digit national ID for individual, corporate tax ID for company), `isActive`, `createdAt`.
+Persistence suggestion: one `Suppliers` table with a `SupplierType` discriminator (EF Core TPH); type-specific columns nullable.
+
+**SupplierRoute location** (a Supplier has 1..n routes/gardens; the route is where the vehicle drives to pick up goods):
+- Address parts: `addressLine`, `subdistrict`, `district`, `province`, `postalCode`; `address` is the composed full text (kept denormalized for run sheets)
+- Navigation: `latitude`, `longitude` (WGS84, both or neither), `mapUrl` (Google Maps link; if empty it is built from the coordinates), `directions` (landmarks / how to get in)
+- Validation: postal code 5 digits; latitude −90..90; longitude −180..180; `mapUrl` must be http(s)
+- Index `SupplierRoutes(SupplierId)`; coordinates are used later for route ordering/navigation (see future enhancements)
+
+**SupplierRawMaterial** = Raw material a supplier sells (supplier unit, units per supplier unit, price)  
+- Raw materials and prices belong to the **Supplier**, not to the Route. All routes of a supplier share the same catalog; a route only says where to pick up
 
 **Example**:
 ```
 Supplier A (ร้านดอกไม้ใหญ่)
 ├─ Route A (Chiang Mai): Ms. Dao (053-xxx)
-│  └─ Apple: 1,000 Kg @ ฿18/kg
-│  └─ Grape: 500 Kg @ ฿25/kg
 │
 ├─ Route B (Nakhon Pathom): Mr. Som (034-xxx)
-│  └─ Apple: 800 Kg @ ฿20/kg  ← Different price!
-│  └─ Banana: 600 Kg @ ฿15/kg
 │
 └─ Route C (Prachuap): Mr. Niran (032-xxx)
-   └─ Orange: 2,000 Kg @ ฿16/kg
+
+Supplier A raw materials (shared by all routes):
+├─ Apple @ ฿18/kg
+├─ Grape @ ฿25/kg
+├─ Banana @ ฿15/kg
+└─ Orange @ ฿16/kg
 ```
+
+### 3.1.1 Raw Materials, Finished Goods & BOM (Master Data)
+
+**Category** — one table for both catalogs, `kind` = `raw_material` | `finished_good`; fields `name`, `sortOrder`, `parentCategoryId?`.
+- Two levels at most: a top-level **group** (ดอกไม้สด, บรรจุภัณฑ์, วัสดุปักและอุปกรณ์) and optional **children** under it (genus / variety type, e.g. Dendrobium, Mokara, Anthurium). A child cannot be a parent, and parent and child share the same `kind`
+- Raw materials, families and finished goods may attach to either level. A report by group rolls up the group's own items plus all its children's (`categoryGroupId`)
+- A category cannot be deleted while it has children, SKUs, families or finished goods
+- `GET /api/categories?kind=` returns groups with their children
+- Example: ดอกไม้สด › หวาย (Dendrobium) / โมกค่า (Mokara) / หน้าวัว (Anthurium); legacy `Prod_Type` maps to the child, whose parent is the group
+
+**MaterialFamily** (variety) — groups SKU variants (sizes / grades) of one variety, e.g. `ANTH-CALISTO` with J / XL / L / M / S / SS SKUs
+- `code` (unique), `nameTh`, `nameEn?`, `categoryId`, `color?`, `isActive`. A family has **no stock or price**; combined stock = sum of its SKUs
+- Not a category (a category such as Dendrobium holds many varieties) and not a SKU
+- `RawMaterial.familyId?` is optional (packaging and one-off items stand alone). Choosing a family pre-fills name / category / colour on the SKU form
+- A family with SKUs cannot be deleted (deactivate, or move the SKUs out first)
+- Deferred (level 2): BOM lines that reference a family and allow substitute sizes — wait until the business confirms sizes are substitutable
+
+**RawMaterial** (SKU level — a grade or size variant is a **separate** raw material, e.g. long-stem and short-stem red rose are two SKUs)
+- `sku`, `familyId?`, `nameTh` (required), `nameEn?`, `customerName?` (the name customers call it by — searchable, shown on customer-facing documents), `categoryId`, `unit` (base unit used by BOM / stock / planning), `grade?`, `size?`, `color?`, `description?`, `isActive`
+- Added for legacy-system migration: `barcode?`, `reorderPoint?` (base unit), `standardCost?` (reference only; real purchase prices stay on `SupplierRawMaterial`)
+- Direct sale: `isSellable` (default false) and `sellPrice?` (list price per base unit; customer / consignment prices stay in Sales). A sellable raw material is sold and its stock deducted **directly** — no production order and no one-line BOM finished good. Use a `FinishedGood` only when there is real processing (the unit changes, or labour / packaging is added, e.g. sorting stems into a 10-stem bunch, garlands). Follow-up (not built yet): customer-order lines reference `itemType` (`finished_good` | `raw_material`) + `itemId`
+- Legacy mapping: `Code`→`sku`, `Name1`→`nameEn` (English name), `Name2`→`nameTh` (Thai name), `Name3`→`customerName` (customer-facing name; numeric EAN-like values go to `barcode` instead). `MaterialFamily.code` is derived from `Name1` (group by normalised value: trim, strip trailing `*`, case-insensitive), `Type`→`categoryId` (via a Type→Category map, case-insensitive), `Size`→`size`, `Color`→`color`, `UOM`→`unit`, `ROP`→`reorderPoint`, `Costs`→`standardCost`, `Active`→`isActive`, `FG_Type`/sold-as-is items→`isSellable`. `PackSize` (covered by `unitsPerSupplierUnit`) and `SalPrice` are not imported
+- The unit a supplier sells in (bunch, box…) and its price live on `SupplierRawMaterial` (`supplierUnit`, `unitsPerSupplierUnit`, `pricePerSupplierUnit`) — see 3.1
+- Stock on hand is an inventory concern (`RawMaterialInventory`); the `onHandQuantity` on the procurement mock is a snapshot only
+
+**FinishedGood** (product)
+- `sku`, `name`, `categoryId`, `unit`, `standardPrice` (list price; customer / consignment prices belong to Sales), `description?`, `imageUrl?`, `isActive`
+
+**BOM (versioned)** — a finished good has many `BomVersion`s, each with `BomItem`s (`rawMaterialId`, `quantityPerUnit` in the raw material's base unit)
+- `version` (1, 2, …) per finished good, `status` = `draft` | `active` | `archived`, `effectiveFrom`, `note?`
+- Exactly **one** `active` version per finished good. Activating a new version archives the previous one; archived versions are kept
+- Purchase planning and new production orders read the active version. A production order stores the allocated quantities (and should keep its `bomVersionId`), so editing a recipe never changes past orders
+- Persistence: `Categories`, `MaterialFamilies`, `RawMaterials`, `FinishedGoods`, `BomVersions` (unique filtered index on `(FinishedGoodId)` where `Status = 'active'`), `BomItems`
 
 ### 3.2 Purchase Order Grouping (KEY CONCEPT)
 
@@ -107,8 +156,9 @@ System groups by (Supplier + Route) and creates:
 **Vehicle** = รถจัดส่ง  
 - Code: VH-001, License: กข-1234, Driver: Mr. Somchai, Capacity: 2,000 Kg
 
-**VehicleRoute** = Fixed daily route (ordered sequence of stops)  
+**VehicleRoute** = Fixed daily route (ordered sequence of stops) — **not tied to a vehicle**  
 - Route A runs Mon-Fri every day
+- A route is only the pickup-point mapping (stops + run days). The vehicle that actually runs it is recorded when the run sheet is generated, so any vehicle can run any route and one vehicle can run several routes in a day
 - Each VehicleRoute has ordered stops (Stop 1 → Stop 2 → Stop 3)
 - Each stop references a SupplierRoute (from the supplier master data)
 
@@ -119,11 +169,12 @@ System groups by (Supplier + Route) and creates:
 
 **Example**:
 ```
-Vehicle VH-001 (Mr. Somchai, 2,000 Kg capacity)
-└─ VehicleRoute A (Mon-Fri)
-   ├─ Stop 1 (Seq 1): Supplier A - Route A (Chiang Mai)
-   ├─ Stop 2 (Seq 2): Supplier B - Route C (Bangkok)
-   └─ Stop 3 (Seq 3): Supplier A - Route B (Nakhon Pathom)
+VehicleRoute A (Mon-Fri)
+├─ Stop 1 (Seq 1): Supplier A - Route A (Chiang Mai)
+├─ Stop 2 (Seq 2): Supplier B - Route C (Bangkok)
+└─ Stop 3 (Seq 3): Supplier A - Route B (Nakhon Pathom)
+
+Vehicle VH-001 (Mr. Somchai, 2,000 Kg capacity) — picked on the run sheet, not on the route
 ```
 
 **Key Point**: A vehicle route can visit multiple suppliers in a single route!
@@ -131,8 +182,8 @@ Vehicle VH-001 (Mr. Somchai, 2,000 Kg capacity)
 ### 3.4 Vehicle Run Sheet
 
 **VehicleRunSheet** = Daily pickup document (ใบวิ่งรถ)  
-- Created for 1 Vehicle + 1 Date
-- Contains all POs whose pickup location matches a stop in this vehicle's route
+- Created for 1 VehicleRoute + 1 Vehicle + 1 Date (the vehicle is chosen here; it is not stored on the route)
+- Contains all POs whose pickup location matches a stop in the selected route
 - Ordered by stop sequence
 
 **Example Run Sheet** (VH-001 on 15-Jan-2024):
@@ -161,8 +212,8 @@ Total Run: ฿40,500 | 3 Stops | 3 POs
 **Actors**: Purchase Planning Staff / Logistics Manager
 
 **Steps**:
-1. Select Vehicle & Date
-2. System loads vehicle's VehicleRoute & finds all matching POs (Draft/Confirmed status)
+1. Select Route, Vehicle & Date
+2. System loads the selected VehicleRoute & finds all matching POs (Draft/Confirmed status)
 3. Group POs by stop in sequence order
 4. Show preview of run sheet (stops in order with POs bundled)
 5. Print or export as PDF
@@ -217,7 +268,7 @@ Total Run: ฿40,500 | 3 Stops | 3 POs
 ### 6.1 Supplier & Route Entities
 - **Supplier**: Main company
 - **SupplierRoute**: Specific garden/location within supplier
-- **SupplierRouteRawMaterial**: RM available at route (with price)
+- **SupplierRawMaterial**: RM the supplier sells (with price), shared by all its routes
 
 ### 6.2 Purchase Order Entities
 - **PurchaseTemplate**: Template from sales history
@@ -233,7 +284,7 @@ Total Run: ฿40,500 | 3 Stops | 3 POs
 
 ### 6.3 Vehicle & Route Entities
 - **Vehicle**: Truck master data (code, license, driver, capacity)
-- **VehicleRoute**: Fixed daily route (ordered stops, days of week)
+- **VehicleRoute**: Fixed daily route (ordered stops, days of week); no vehicle reference
 - **VehicleRouteStop**: Ordered stop referencing a SupplierRoute
 
 ### 6.4 Run Sheet Entities
@@ -258,9 +309,17 @@ Total Run: ฿40,500 | 3 Stops | 3 POs
 - `POST /api/purchase-templates` - Create template
 - `POST /api/purchase-orders/generate-from-template` - Create POs (grouped by Supplier+Route)
 
+### Master Data (Catalog)
+- `GET/POST/PUT/DELETE /api/material-families` - CRUD families (delete rejected while it has SKUs); `GET /api/raw-materials?familyId=` lists a family's SKUs
+- `GET/POST/PUT/DELETE /api/raw-materials` - CRUD raw materials, including `isSellable` / `sellPrice` (delete rejected when referenced by a BOM, supplier offer or production order — deactivate instead)
+- `GET/POST/PUT/DELETE /api/finished-goods` - CRUD finished goods (delete rejected when referenced by production orders, LOTs or customer orders)
+- `GET/POST /api/finished-goods/{id}/bom-versions` - list / create a draft BOM version
+- `PUT/DELETE /api/bom-versions/{id}` - edit / delete a draft only
+- `POST /api/bom-versions/{id}/activate` - make it the active version (previous active becomes archived)
+
 ### Logistics - Vehicle Management
 - `GET/POST /api/vehicles` - CRUD vehicles
-- `GET/POST /api/vehicles/{id}/routes` - CRUD vehicle routes
+- `GET/POST /api/vehicle-routes` - CRUD vehicle routes (not nested under a vehicle)
 
 ### Logistics - Run Sheet Management (FLOW 3a)
 - `POST /api/vehicle-run-sheets/generate` - Generate run sheet from vehicle+date
@@ -283,11 +342,15 @@ Total Run: ฿40,500 | 3 Stops | 3 POs
 - Screen 4: Template Detail - Raw Materials View (select suppliers)
 - Screen 5: Purchase Orders Summary
 
+### Master Data (menu "ข้อมูลหลัก", `/catalog`)
+- Finished goods list (add / edit / activate-deactivate / delete) and detail page with versioned BOM (create draft, edit draft, activate, delete draft)
+- Raw materials list (add / edit / activate-deactivate / delete)
+
 ### Logistics
 - Screen 6: Vehicle Master List
 - Screen 7: Vehicle Routes Management
 - Screen 8: Vehicle Run Sheet Generation (FLOW 3a)
-  - Select Vehicle + Date → Preview stops & POs → Print
+  - Select Route + Vehicle + Date → Preview stops & POs → Print
 - Screen 9: Vehicle Run Sheet - Printable View (A4 format)
 - Screen 10: Record Delivery Receipt (FLOW 3b) NEW
   - Load completed run sheet → Record actual quantities → Review variance → Confirm

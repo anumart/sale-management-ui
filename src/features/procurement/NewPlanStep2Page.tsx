@@ -114,7 +114,7 @@ export function NewPlanStep2Page() {
                 const material = rawMaterialById(rm.rawMaterialId)
                 return (
                   <tr key={rm.rawMaterialId} className="hover:bg-hover">
-                    <td className="rounded-l-[0.875rem] border-y border-l border-line px-3.5 py-4">{material?.name}</td>
+                    <td className="rounded-l-[0.875rem] border-y border-l border-line px-3.5 py-4">{material?.nameTh}</td>
                     <td className="border-y border-line px-3.5 py-4 tabular-nums">
                       {roundQty(rm.requiredQuantity)} {material?.unit}
                     </td>

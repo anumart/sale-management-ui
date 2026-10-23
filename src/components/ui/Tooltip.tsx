@@ -35,7 +35,7 @@ export function Tooltip({ content, side = 'top', align = 'center', children, cla
       <span
         role="tooltip"
         className={cn(
-          'pointer-events-none absolute z-50 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-white shadow-pop',
+          'pointer-events-none absolute z-50 rounded-lg bg-black/85 px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-white shadow-pop',
           'opacity-0 transition-opacity duration-200 ease-smooth group-focus-within/tip:opacity-100 group-hover/tip:opacity-100',
           sides[side],
           (side === 'top' || side === 'bottom') && aligns[align],
