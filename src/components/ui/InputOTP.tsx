@@ -62,10 +62,10 @@ export function InputOTP({ value, onChange, length = 6, separatorAfter, invalid,
               focus(digits.length)
             }}
             className={cn(
-              'size-12 rounded-control border bg-surface text-center text-title font-semibold text-ink outline-none transition-[border-color,box-shadow]',
+              'size-12 rounded-control border bg-field text-center text-title font-semibold text-ink outline-none transition-[border-color,box-shadow]',
               invalid
                 ? 'border-danger shadow-[0_0_0_4px_var(--color-danger-bg)]'
-                : 'border-line-strong focus:border-primary focus:shadow-[0_0_0_4px_var(--color-primary-soft)]',
+                : 'border-field-edge focus:border-primary focus:shadow-[0_0_0_4px_var(--color-primary-soft)]',
             )}
           />
           {separatorAfter === i + 1 && i < length - 1 && <span aria-hidden="true" className="h-0.5 w-3 rounded-full bg-line-strong" />}

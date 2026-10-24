@@ -3,7 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconChart, IconCheck, IconEye, IconMapPin, IconPlus, IconTrash } from '@/components/icons'
 import { Button, Card, CardHeader, DataTable, Select, StatusPill, TextField, type DataTableColumn } from '@/components/ui'
-import { finishedGoodById, finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { finishedGoodById } from '@/features/procurement/mockData'
 import { useProductionStore } from '@/features/production/store'
 import { formatDateTime } from '@/lib/format'
 import { toast } from '@/stores/toastStore'
@@ -123,7 +124,7 @@ function ImportProfileCard({ customer }: { customer: Customer }) {
                 placeholder="สินค้าของเรา"
                 value={m.finishedGoodId}
                 onChange={(e) => setSku(i, { finishedGoodId: e.target.value })}
-                options={finishedGoods.map((fg) => ({ value: fg.id, label: fg.name }))}
+                options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))}
                 containerClassName="mb-0 min-w-56 flex-1"
               />
               <Button size="sm" variant="danger" iconOnly outlined aria-label="ลบรหัส" title="ลบรหัส" onClick={() => set({ skuMap: draft.skuMap.filter((_, j) => j !== i) })}>

@@ -7,7 +7,9 @@ import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { AddSupplierRouteModal } from './AddSupplierRouteModal'
 import { useProcurementStore } from './store'
-import type { SupplierRoute } from './types'
+import { rawMaterialById, supplierRawMaterials } from './mockData'
+import type { SupplierRawMaterial, SupplierRoute } from './types'
+import { routeMapUrl, supplierTypeLabel } from './utils'
 
 export interface SupplierDetailPageProps {
   supplierId: string
@@ -72,6 +74,32 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
     toast.success(`${routeName} เปลี่ยนเป็น${isActive ? 'ปิดใช้งาน' : 'ใช้งาน'}`)
   }
 
+  const offerColumns: DataTableColumn<SupplierRawMaterial>[] = [
+    {
+      key: 'name',
+      label: 'วัตถุดิบ',
+      sortValue: (o) => rawMaterialById(o.rawMaterialId)?.nameTh.toLowerCase() ?? '',
+      render: (o) => <span className="font-medium">{rawMaterialById(o.rawMaterialId)?.nameTh ?? o.rawMaterialId}</span>,
+    },
+    { key: 'unit', label: 'หน่วยที่ขาย', sortValue: (o) => o.supplierUnit, render: (o) => <span className="whitespace-nowrap">{o.supplierUnit}</span> },
+    {
+      key: 'conversion',
+      label: 'เทียบเป็นหน่วยฐาน',
+      sortValue: (o) => o.unitsPerSupplierUnit,
+      render: (o) => (
+        <span className="whitespace-nowrap tabular-nums">
+          {o.unitsPerSupplierUnit.toLocaleString()} {rawMaterialById(o.rawMaterialId)?.unit}
+        </span>
+      ),
+    },
+    {
+      key: 'price',
+      label: 'ราคา / หน่วยที่ขาย',
+      sortValue: (o) => o.pricePerSupplierUnit,
+      render: (o) => <span className="whitespace-nowrap tabular-nums">{o.pricePerSupplierUnit.toLocaleString()} ฿</span>,
+    },
+  ]
+
   const columns: DataTableColumn<SupplierRoute>[] = [
     {
       key: 'route',
@@ -90,7 +118,25 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
       key: 'address',
       label: 'ที่อยู่',
       sortValue: (r) => r.address.toLowerCase(),
-      render: (r) => <span className="block max-w-xs text-muted">{r.address}</span>,
+      render: (r) => {
+        const mapUrl = routeMapUrl(r)
+        return (
+          <div className="max-w-xs">
+            <p className="text-muted">{r.address}</p>
+            {r.directions && <p className="mt-1 text-sm text-muted">{r.directions}</p>}
+            {r.latitude != null && r.longitude != null && (
+              <p className="mt-1 text-sm text-muted tabular-nums">
+                {r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}
+              </p>
+            )}
+            {mapUrl && (
+              <a href={mapUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-primary-fg hover:underline">
+                เปิดแผนที่
+              </a>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'contact',
@@ -104,23 +150,6 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
       ),
     },
     {
-      key: 'rawMaterials',
-      label: 'วัตถุดิบ',
-      sortValue: (r) => r.rawMaterials.length,
-      render: (r) =>
-        r.rawMaterials.length === 0 ? (
-          <span className="text-muted">—</span>
-        ) : (
-          <ul className="space-y-0.5 text-sm">
-            {r.rawMaterials.map((rm) => (
-              <li key={rm.rawMaterialName} className="whitespace-nowrap">
-                {rm.rawMaterialName} · {rm.pricePerUnit.toLocaleString()}฿/{rm.unit}
-              </li>
-            ))}
-          </ul>
-        ),
-    },
-    {
       key: 'status',
       label: 'สถานะ',
       sortValue: (r) => (r.isActive ? 1 : 0),
@@ -129,7 +158,8 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
   ]
 
   const activeRouteCount = routes.filter((r) => r.isActive).length
-  const materialVariety = new Set(routes.flatMap((r) => r.rawMaterials.map((rm) => rm.rawMaterialName))).size
+  const offers = supplierRawMaterials.filter((o) => o.supplierId === supplierId)
+  const materialVariety = offers.length
   const memberSince = new Date(supplier.createdAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
 
   return (
@@ -150,7 +180,11 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold">{supplier.name}</p>
-                <p className="truncate text-sm text-muted">เป็นซัพพลายเออร์ตั้งแต่ {memberSince}</p>
+                <p className="truncate text-sm text-muted">
+                  {supplierTypeLabel[supplier.supplierType]}
+                  {supplier.supplierType === 'company' && ` · ${supplier.branchCode === '00000' ? 'สำนักงานใหญ่' : `สาขา ${supplier.branchCode}`}`}
+                  {supplier.taxId && ` · ${supplier.taxId}`}
+                </p>
               </div>
             </div>
             <StatusPill tone={supplier.isActive ? 'success' : 'neutral'}>{supplier.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}</StatusPill>
@@ -161,7 +195,7 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-dashed border-line pt-4">
             <div className="min-w-0">
-              <p className="text-xs text-muted">ผู้ติดต่อ</p>
+              <p className="text-xs text-muted">{supplier.supplierType === 'company' ? 'ผู้ติดต่อ' : 'เจ้าของ'}</p>
               <p className="truncate text-control font-medium">{supplier.contactPerson}</p>
             </div>
             <a
@@ -186,6 +220,17 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
           <Stat icon={<IconCalendar />} label="เริ่มเมื่อ" value={memberSince} />
         </div>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader title="วัตถุดิบที่ซัพพลายเออร์ขาย" subtitle="ราคาและหน่วยขายผูกกับซัพพลายเออร์ ใช้ร่วมกันทุกสวน/จุดรับสินค้า" />
+        <DataTable
+          columns={offerColumns}
+          rows={offers}
+          rowKey={(o) => o.rawMaterialId}
+          emptyTitle="ยังไม่มีวัตถุดิบ"
+          emptyDescription="ซัพพลายเออร์รายนี้ยังไม่มีวัตถุดิบที่ขาย"
+        />
+      </Card>
 
       <Card>
         <CardHeader

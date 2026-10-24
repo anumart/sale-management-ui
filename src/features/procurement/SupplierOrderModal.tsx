@@ -33,7 +33,7 @@ export function SupplierOrderModal({ open, onClose, planId, rawMaterialId }: Sup
     <Modal
       open={open}
       onClose={onClose}
-      title={rawMaterial.name}
+      title={rawMaterial.nameTh}
       description={`ต้องซื้อสุทธิ: ${planRawMaterial.netRequiredQuantity} ${rawMaterial.unit}`}
       size="lg"
     >

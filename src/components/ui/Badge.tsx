@@ -36,21 +36,21 @@ export function DeltaBadge({ value, className }: { value: number; className?: st
 
 export type PillTone = 'primary' | 'success' | 'warning' | 'info' | 'danger' | 'accent' | 'neutral' | 'gray'
 
-/** Same intent colors as `Button outlined`: full-strength border, readable `-fg` text, soft tint fill. */
+/** Translucent tint of the intent color on glass, readable `-fg` text, no heavy border. */
 const tones: Record<PillTone, string> = {
-  primary: 'bg-primary-soft border-primary text-primary-fg',
-  success: 'bg-success-bg border-success text-success-fg',
-  warning: 'bg-warning-bg border-warning text-warning-fg',
-  info: 'bg-info-bg border-info text-info-fg',
-  danger: 'bg-danger-bg border-danger text-danger-fg',
-  accent: 'bg-accent-soft border-accent text-accent-dark',
-  neutral: 'bg-surface border-line-strong text-ink-2',
-  gray: 'bg-fill-strong border-muted text-ink-2',
+  primary: 'bg-primary/20 text-primary-fg',
+  success: 'bg-success/25 text-success-fg',
+  warning: 'bg-warning/25 text-warning-fg',
+  info: 'bg-info/22 text-info-fg',
+  danger: 'bg-danger/20 text-danger-fg',
+  accent: 'bg-accent/25 text-accent-dark',
+  neutral: 'bg-field border-field-edge text-ink-2',
+  gray: 'bg-fill-strong text-ink-2',
 }
 
 /** Rectangular status label with a border (DESIGN.md §6.7). */
 export function StatusPill({ tone, children }: { tone: PillTone; children: ReactNode }) {
   return (
-    <span className={cn('inline-flex items-center rounded-md border px-3 py-0.5 text-sm font-medium', tones[tone])}>{children}</span>
+    <span className={cn('inline-flex items-center rounded-full border border-transparent px-3 py-0.5 text-sm font-semibold', tones[tone])}>{children}</span>
   )
 }

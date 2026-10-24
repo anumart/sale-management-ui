@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconEye, IconFactory } from '@/components/icons'
 import { Alert, Button, Card, CardHeader, DataTable, DeltaBadge, Select, StatusPill, TextField, type DataTableColumn } from '@/components/ui'
-import { finishedGoodById, finishedGoods, rawMaterialById, salesHistory } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { finishedGoodById, rawMaterialById, salesHistory } from '@/features/procurement/mockData'
 import { createProductionForOrder, describeFailures } from '@/features/sales/actions'
 import { customerById, useSalesStore } from '@/features/sales/store'
 import type { CustomerOrder } from '@/features/sales/types'
@@ -18,7 +19,7 @@ function StockTable() {
   const rows = Object.values(rmStock)
 
   const columns: DataTableColumn<RawMaterialStock>[] = [
-    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => (rawMaterialById(r.rawMaterialId)?.name ?? '').toLowerCase(), render: (r) => <span className="font-medium">{rawMaterialById(r.rawMaterialId)?.name}</span> },
+    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => (rawMaterialById(r.rawMaterialId)?.nameTh ?? '').toLowerCase(), render: (r) => <span className="font-medium">{rawMaterialById(r.rawMaterialId)?.nameTh}</span> },
     { key: 'onHand', label: 'คงคลัง', sortValue: (r) => r.onHand, render: (r) => <span className="tabular-nums">{roundQty(r.onHand)} {rawMaterialById(r.rawMaterialId)?.unit}</span> },
     { key: 'allocated', label: 'จองแล้ว', sortValue: (r) => r.allocated, render: (r) => <span className="tabular-nums">{roundQty(r.allocated)} {rawMaterialById(r.rawMaterialId)?.unit}</span> },
     {
@@ -86,7 +87,7 @@ function CustomerOrderQueue() {
       sortValue: (o) => shortages(o).length,
       render: (o) => {
         const short = shortages(o)
-        return short.length === 0 ? <StatusPill tone="success">มีพอ</StatusPill> : <StatusPill tone="danger">ไม่พอ: {short.map((s) => rawMaterialById(s.rawMaterialId)?.name).join(', ')}</StatusPill>
+        return short.length === 0 ? <StatusPill tone="success">มีพอ</StatusPill> : <StatusPill tone="danger">ไม่พอ: {short.map((s) => rawMaterialById(s.rawMaterialId)?.nameTh).join(', ')}</StatusPill>
       },
     },
   ]
@@ -152,7 +153,7 @@ function ManualProductionForm() {
     <Card>
       <CardHeader title="พนักงานเลือกผลิตเอง" subtitle="โจทย์ 2 — เลือกจากประวัติการขาย ผลิตเข้าสต็อกหรือให้ร้านฝากขาย โดยไม่มีคำสั่งซื้อจากลูกค้า" />
       <div className="grid gap-x-4 sm:grid-cols-3">
-        <Select label="สินค้า" placeholder="เลือกสินค้า" value={finishedGoodId} onChange={(e) => setFinishedGoodId(e.target.value)} options={finishedGoods.map((fg) => ({ value: fg.id, label: fg.name }))} />
+        <Select label="สินค้า" placeholder="เลือกสินค้า" value={finishedGoodId} onChange={(e) => setFinishedGoodId(e.target.value)} options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))} />
         <TextField label="จำนวน" type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         <Select
           label="สำหรับร้าน (ไม่บังคับ)"
@@ -185,7 +186,7 @@ function ManualProductionForm() {
             const available = roundQty((rmStock[r.rawMaterialId]?.onHand ?? 0) - (rmStock[r.rawMaterialId]?.allocated ?? 0))
             return (
               <li key={r.rawMaterialId} className="flex items-center justify-between gap-3 rounded-[0.875rem] border border-line px-3.5 py-2.5">
-                <span className="font-medium">{material?.name}</span>
+                <span className="font-medium">{material?.nameTh}</span>
                 <span className="text-sm tabular-nums">
                   {r.quantity} / {available} {material?.unit} {s ? <StatusPill tone="danger">ไม่พอ</StatusPill> : <StatusPill tone="success">พอ</StatusPill>}
                 </span>

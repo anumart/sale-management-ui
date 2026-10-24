@@ -11,13 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UiKitRouteImport } from './routes/ui-kit'
+import { Route as CatalogSectionsRouteImport } from './routes/catalog/_sections'
 import { Route as LogisticsSectionsRouteImport } from './routes/logistics/_sections'
 import { Route as ProcurementSectionsRouteImport } from './routes/procurement/_sections'
 import { Route as ProductionSectionsRouteImport } from './routes/production/_sections'
 import { Route as SalesSectionsRouteImport } from './routes/sales/_sections'
+import { Route as CatalogSectionsFamiliesRouteImport } from './routes/catalog/_sections/families'
+import { Route as CatalogSectionsRawMaterialsRouteImport } from './routes/catalog/_sections/raw-materials'
 import { Route as ProductionSectionsFinishedGoodsRouteImport } from './routes/production/_sections/finished-goods'
 import { Route as ProductionSectionsLinesRouteImport } from './routes/production/_sections/lines'
 import { Route as ProductionSectionsPlanningRouteImport } from './routes/production/_sections/planning'
+import { Route as CatalogSectionsFinishedGoodsIndexRouteImport } from './routes/catalog/_sections/finished-goods/index'
+import { Route as CatalogSectionsFinishedGoodsFinishedGoodIdRouteImport } from './routes/catalog/_sections/finished-goods/$finishedGoodId'
 import { Route as LogisticsSectionsRoutesIndexRouteImport } from './routes/logistics/_sections/routes/index'
 import { Route as LogisticsSectionsRunSheetsIndexRouteImport } from './routes/logistics/_sections/run-sheets/index'
 import { Route as LogisticsSectionsRunSheetsGenerateRouteImport } from './routes/logistics/_sections/run-sheets/generate'
@@ -56,6 +61,11 @@ const UiKitRoute = UiKitRouteImport.update({
   path: '/ui-kit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogSectionsRoute = CatalogSectionsRouteImport.update({
+  id: '/catalog/_sections',
+  path: '/catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LogisticsSectionsRoute = LogisticsSectionsRouteImport.update({
   id: '/logistics/_sections',
   path: '/logistics',
@@ -76,6 +86,17 @@ const SalesSectionsRoute = SalesSectionsRouteImport.update({
   path: '/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogSectionsFamiliesRoute = CatalogSectionsFamiliesRouteImport.update({
+  id: '/families',
+  path: '/families',
+  getParentRoute: () => CatalogSectionsRoute,
+} as any)
+const CatalogSectionsRawMaterialsRoute =
+  CatalogSectionsRawMaterialsRouteImport.update({
+    id: '/raw-materials',
+    path: '/raw-materials',
+    getParentRoute: () => CatalogSectionsRoute,
+  } as any)
 const ProductionSectionsFinishedGoodsRoute =
   ProductionSectionsFinishedGoodsRouteImport.update({
     id: '/finished-goods',
@@ -92,6 +113,18 @@ const ProductionSectionsPlanningRoute =
     id: '/planning',
     path: '/planning',
     getParentRoute: () => ProductionSectionsRoute,
+  } as any)
+const CatalogSectionsFinishedGoodsIndexRoute =
+  CatalogSectionsFinishedGoodsIndexRouteImport.update({
+    id: '/finished-goods/',
+    path: '/finished-goods/',
+    getParentRoute: () => CatalogSectionsRoute,
+  } as any)
+const CatalogSectionsFinishedGoodsFinishedGoodIdRoute =
+  CatalogSectionsFinishedGoodsFinishedGoodIdRouteImport.update({
+    id: '/finished-goods/$finishedGoodId',
+    path: '/finished-goods/$finishedGoodId',
+    getParentRoute: () => CatalogSectionsRoute,
   } as any)
 const LogisticsSectionsRoutesIndexRoute =
   LogisticsSectionsRoutesIndexRouteImport.update({
@@ -259,13 +292,17 @@ const ProcurementSectionsPlansNewStep2Route =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ui-kit': typeof UiKitRoute
+  '/catalog': typeof CatalogSectionsRouteWithChildren
   '/logistics': typeof LogisticsSectionsRouteWithChildren
   '/procurement': typeof ProcurementSectionsRouteWithChildren
   '/production': typeof ProductionSectionsRouteWithChildren
   '/sales': typeof SalesSectionsRouteWithChildren
+  '/catalog/families': typeof CatalogSectionsFamiliesRoute
+  '/catalog/raw-materials': typeof CatalogSectionsRawMaterialsRoute
   '/production/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
+  '/catalog/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
   '/logistics/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
@@ -276,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/sales/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
+  '/catalog/finished-goods/': typeof CatalogSectionsFinishedGoodsIndexRoute
   '/logistics/routes/': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/run-sheets/': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/vehicles/': typeof LogisticsSectionsVehiclesIndexRoute
@@ -297,13 +335,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ui-kit': typeof UiKitRoute
+  '/catalog': typeof CatalogSectionsRouteWithChildren
   '/logistics': typeof LogisticsSectionsRouteWithChildren
   '/procurement': typeof ProcurementSectionsRouteWithChildren
   '/production': typeof ProductionSectionsRouteWithChildren
   '/sales': typeof SalesSectionsRouteWithChildren
+  '/catalog/families': typeof CatalogSectionsFamiliesRoute
+  '/catalog/raw-materials': typeof CatalogSectionsRawMaterialsRoute
   '/production/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
+  '/catalog/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
   '/logistics/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
@@ -314,6 +356,7 @@ export interface FileRoutesByTo {
   '/sales/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
+  '/catalog/finished-goods': typeof CatalogSectionsFinishedGoodsIndexRoute
   '/logistics/routes': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/run-sheets': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/vehicles': typeof LogisticsSectionsVehiclesIndexRoute
@@ -336,13 +379,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ui-kit': typeof UiKitRoute
+  '/catalog/_sections': typeof CatalogSectionsRouteWithChildren
   '/logistics/_sections': typeof LogisticsSectionsRouteWithChildren
   '/procurement/_sections': typeof ProcurementSectionsRouteWithChildren
   '/production/_sections': typeof ProductionSectionsRouteWithChildren
   '/sales/_sections': typeof SalesSectionsRouteWithChildren
+  '/catalog/_sections/families': typeof CatalogSectionsFamiliesRoute
+  '/catalog/_sections/raw-materials': typeof CatalogSectionsRawMaterialsRoute
   '/production/_sections/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/_sections/lines': typeof ProductionSectionsLinesRoute
   '/production/_sections/planning': typeof ProductionSectionsPlanningRoute
+  '/catalog/_sections/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
   '/logistics/_sections/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/_sections/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/_sections/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
@@ -353,6 +400,7 @@ export interface FileRoutesById {
   '/sales/_sections/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/_sections/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/_sections/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
+  '/catalog/_sections/finished-goods/': typeof CatalogSectionsFinishedGoodsIndexRoute
   '/logistics/_sections/routes/': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/_sections/run-sheets/': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/_sections/vehicles/': typeof LogisticsSectionsVehiclesIndexRoute
@@ -376,13 +424,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ui-kit'
+    | '/catalog'
     | '/logistics'
     | '/procurement'
     | '/production'
     | '/sales'
+    | '/catalog/families'
+    | '/catalog/raw-materials'
     | '/production/finished-goods'
     | '/production/lines'
     | '/production/planning'
+    | '/catalog/finished-goods/$finishedGoodId'
     | '/logistics/run-sheets/generate'
     | '/procurement/plans/$planId'
     | '/procurement/purchase-orders/$poId'
@@ -393,6 +445,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$orderId'
     | '/sales/reports/$reportId'
     | '/sales/visits/$visitId'
+    | '/catalog/finished-goods/'
     | '/logistics/routes/'
     | '/logistics/run-sheets/'
     | '/logistics/vehicles/'
@@ -414,13 +467,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ui-kit'
+    | '/catalog'
     | '/logistics'
     | '/procurement'
     | '/production'
     | '/sales'
+    | '/catalog/families'
+    | '/catalog/raw-materials'
     | '/production/finished-goods'
     | '/production/lines'
     | '/production/planning'
+    | '/catalog/finished-goods/$finishedGoodId'
     | '/logistics/run-sheets/generate'
     | '/procurement/plans/$planId'
     | '/procurement/purchase-orders/$poId'
@@ -431,6 +488,7 @@ export interface FileRouteTypes {
     | '/sales/orders/$orderId'
     | '/sales/reports/$reportId'
     | '/sales/visits/$visitId'
+    | '/catalog/finished-goods'
     | '/logistics/routes'
     | '/logistics/run-sheets'
     | '/logistics/vehicles'
@@ -452,13 +510,17 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ui-kit'
+    | '/catalog/_sections'
     | '/logistics/_sections'
     | '/procurement/_sections'
     | '/production/_sections'
     | '/sales/_sections'
+    | '/catalog/_sections/families'
+    | '/catalog/_sections/raw-materials'
     | '/production/_sections/finished-goods'
     | '/production/_sections/lines'
     | '/production/_sections/planning'
+    | '/catalog/_sections/finished-goods/$finishedGoodId'
     | '/logistics/_sections/run-sheets/generate'
     | '/procurement/_sections/plans/$planId'
     | '/procurement/_sections/purchase-orders/$poId'
@@ -469,6 +531,7 @@ export interface FileRouteTypes {
     | '/sales/_sections/orders/$orderId'
     | '/sales/_sections/reports/$reportId'
     | '/sales/_sections/visits/$visitId'
+    | '/catalog/_sections/finished-goods/'
     | '/logistics/_sections/routes/'
     | '/logistics/_sections/run-sheets/'
     | '/logistics/_sections/vehicles/'
@@ -491,6 +554,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UiKitRoute: typeof UiKitRoute
+  CatalogSectionsRoute: typeof CatalogSectionsRouteWithChildren
   LogisticsSectionsRoute: typeof LogisticsSectionsRouteWithChildren
   ProcurementSectionsRoute: typeof ProcurementSectionsRouteWithChildren
   ProductionSectionsRoute: typeof ProductionSectionsRouteWithChildren
@@ -511,6 +575,13 @@ declare module '@tanstack/react-router' {
       path: '/ui-kit'
       fullPath: '/ui-kit'
       preLoaderRoute: typeof UiKitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/_sections': {
+      id: '/catalog/_sections'
+      path: '/catalog'
+      fullPath: '/catalog'
+      preLoaderRoute: typeof CatalogSectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logistics/_sections': {
@@ -541,6 +612,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SalesSectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalog/_sections/families': {
+      id: '/catalog/_sections/families'
+      path: '/families'
+      fullPath: '/catalog/families'
+      preLoaderRoute: typeof CatalogSectionsFamiliesRouteImport
+      parentRoute: typeof CatalogSectionsRoute
+    }
+    '/catalog/_sections/raw-materials': {
+      id: '/catalog/_sections/raw-materials'
+      path: '/raw-materials'
+      fullPath: '/catalog/raw-materials'
+      preLoaderRoute: typeof CatalogSectionsRawMaterialsRouteImport
+      parentRoute: typeof CatalogSectionsRoute
+    }
     '/production/_sections/finished-goods': {
       id: '/production/_sections/finished-goods'
       path: '/finished-goods'
@@ -561,6 +646,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/production/planning'
       preLoaderRoute: typeof ProductionSectionsPlanningRouteImport
       parentRoute: typeof ProductionSectionsRoute
+    }
+    '/catalog/_sections/finished-goods/': {
+      id: '/catalog/_sections/finished-goods/'
+      path: '/finished-goods'
+      fullPath: '/catalog/finished-goods/'
+      preLoaderRoute: typeof CatalogSectionsFinishedGoodsIndexRouteImport
+      parentRoute: typeof CatalogSectionsRoute
+    }
+    '/catalog/_sections/finished-goods/$finishedGoodId': {
+      id: '/catalog/_sections/finished-goods/$finishedGoodId'
+      path: '/finished-goods/$finishedGoodId'
+      fullPath: '/catalog/finished-goods/$finishedGoodId'
+      preLoaderRoute: typeof CatalogSectionsFinishedGoodsFinishedGoodIdRouteImport
+      parentRoute: typeof CatalogSectionsRoute
     }
     '/logistics/_sections/routes/': {
       id: '/logistics/_sections/routes/'
@@ -754,6 +853,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CatalogSectionsRouteChildren {
+  CatalogSectionsFamiliesRoute: typeof CatalogSectionsFamiliesRoute
+  CatalogSectionsRawMaterialsRoute: typeof CatalogSectionsRawMaterialsRoute
+  CatalogSectionsFinishedGoodsFinishedGoodIdRoute: typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
+  CatalogSectionsFinishedGoodsIndexRoute: typeof CatalogSectionsFinishedGoodsIndexRoute
+}
+
+const CatalogSectionsRouteChildren: CatalogSectionsRouteChildren = {
+  CatalogSectionsFamiliesRoute: CatalogSectionsFamiliesRoute,
+  CatalogSectionsRawMaterialsRoute: CatalogSectionsRawMaterialsRoute,
+  CatalogSectionsFinishedGoodsFinishedGoodIdRoute:
+    CatalogSectionsFinishedGoodsFinishedGoodIdRoute,
+  CatalogSectionsFinishedGoodsIndexRoute:
+    CatalogSectionsFinishedGoodsIndexRoute,
+}
+
+const CatalogSectionsRouteWithChildren = CatalogSectionsRoute._addFileChildren(
+  CatalogSectionsRouteChildren,
+)
+
 interface LogisticsSectionsRouteChildren {
   LogisticsSectionsRunSheetsGenerateRoute: typeof LogisticsSectionsRunSheetsGenerateRoute
   LogisticsSectionsRoutesIndexRoute: typeof LogisticsSectionsRoutesIndexRoute
@@ -861,6 +980,7 @@ const SalesSectionsRouteWithChildren = SalesSectionsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UiKitRoute: UiKitRoute,
+  CatalogSectionsRoute: CatalogSectionsRouteWithChildren,
   LogisticsSectionsRoute: LogisticsSectionsRouteWithChildren,
   ProcurementSectionsRoute: ProcurementSectionsRouteWithChildren,
   ProductionSectionsRoute: ProductionSectionsRouteWithChildren,

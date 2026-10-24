@@ -33,7 +33,7 @@ export function createProductionForOrder(order: CustomerOrder): ProductionForOrd
     })
     if (res.ok) result.created.push(res.order.orderNumber)
     else {
-      const short = res.shortages.map((s) => rawMaterialById(s.rawMaterialId)?.name).filter(Boolean).join(', ')
+      const short = res.shortages.map((s) => rawMaterialById(s.rawMaterialId)?.nameTh).filter(Boolean).join(', ')
       result.failed.push({ finishedGoodId: line.finishedGoodId, reason: short ? `วัตถุดิบไม่พอ: ${short}` : res.error })
     }
   }

@@ -5,7 +5,7 @@ const toggleClass = (pressed: boolean, outline?: boolean) =>
   cn(
     'inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-[0.625rem] px-2.5 text-control transition-colors duration-200 ease-smooth [&>svg]:size-[1.125rem]',
     'disabled:cursor-not-allowed disabled:opacity-45',
-    outline && 'border border-line-strong bg-surface',
+    outline && 'border border-field-edge bg-field',
     pressed ? 'bg-primary-soft text-primary-fg' : 'text-ink-2 hover:bg-fill hover:text-ink',
     pressed && outline && 'border-primary',
   )

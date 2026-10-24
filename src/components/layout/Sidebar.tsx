@@ -1,6 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router'
 import { type PointerEvent, type ReactNode, useRef } from 'react'
-import { IconCart, IconDashboard, IconEdit, IconFactory, IconMoneyBag, IconTruck } from '@/components/icons'
+import { IconBox, IconCart, IconDashboard, IconEdit, IconFactory, IconMoneyBag, IconTruck } from '@/components/icons'
 import { ProfileMenu } from '@/features/auth/components/ProfileMenu'
 import { cn } from '@/lib/cn'
 
@@ -18,6 +18,7 @@ const mainNav: NavItem[] = [
   { to: '/logistics/run-sheets', label: 'ขนส่ง', icon: <IconTruck />, activeMatch: '/logistics' },
   { to: '/production/planning', label: 'ผลิต', icon: <IconFactory />, activeMatch: '/production' },
   { to: '/sales/orders', label: 'ขาย', icon: <IconMoneyBag />, activeMatch: '/sales' },
+  { to: '/catalog/finished-goods', label: 'ข้อมูลหลัก', icon: <IconBox />, activeMatch: '/catalog' },
 ]
 
 const secondaryNav: NavItem[] = [
@@ -165,7 +166,7 @@ export function Sidebar() {
         <span
           ref={dock.tipRef}
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 left-0 z-50 rounded-lg bg-ink/85 px-3 py-1.5 text-sm whitespace-nowrap text-white opacity-0 shadow-pop backdrop-blur-sm transition-opacity duration-150"
+          className="pointer-events-none absolute top-0 left-0 z-50 rounded-lg bg-black/80 px-3 py-1.5 text-sm whitespace-nowrap text-white opacity-0 shadow-pop backdrop-blur-sm transition-opacity duration-150"
         />
       </nav>
 

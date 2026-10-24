@@ -27,32 +27,43 @@
   /* Surfaces & text (Apple-like cool neutrals) */
   --color-bg: #f6eff3;
   --color-surface: #ffffff;
-  --color-glass: rgb(255 255 255 / 0.74);
-  --color-glass-strong: rgb(255 255 255 / 0.84);
-  --color-glass-edge: rgb(255 255 255 / 0.7);
-  --color-line: rgb(60 60 67 / 0.1);
-  --color-line-strong: rgb(60 60 67 / 0.22);
-  --color-ink: #1d1d1f;
-  --color-ink-2: #3a3a3c;
-  --color-muted: #6e6e73;
+  /* Glass card (from the Sunrise preview): 50% white fill, 65% white edge, plum ink. */
+  --color-glass: rgb(255 255 255 / 0.5);
+  --color-glass-strong: rgb(255 255 255 / 0.55);
+  --color-glass-edge: rgb(255 255 255 / 0.65);
+  /* Form controls (inputs, outline buttons, checkboxes, chips, pagination) sit on glass: translucent fill + tinted edge. */
+  --color-field: rgb(255 255 255 / 0.62);
+  --color-field-edge: rgb(var(--tint) / 0.16);
+  /* Active item of segmented controls / pill tabs */
+  --color-seg-on: #ffffff;
+  --color-seg-on-ink: rgb(var(--tint));
+  --shadow-seg: 0 2px 8px rgb(0 0 0 / 0.12);
+  --color-line: rgb(var(--tint) / 0.1);
+  --color-line-strong: rgb(var(--tint) / 0.22);
+  --color-ink: rgb(var(--tint));
+  --color-ink-2: rgb(var(--tint) / 0.88);
+  --color-muted: rgb(var(--tint) / 0.72);
+  /* Text sitting directly on the page background (page title/subtitle); the Midnight background flips it to light. */
+  --color-heading: rgb(var(--tint));
+  --color-heading-muted: rgb(var(--tint) / 0.72);
   --color-placeholder: #aeaeb2;
-  --color-dark: #cccccc;
-  --color-dark-hover: #bdbdbd;
-  --color-on-dark: #1d1d1f;
+  --color-dark: rgb(var(--tint) / 0.88);
+  --color-dark-hover: rgb(var(--tint) / 0.96);
+  --color-on-dark: #fff7fb;
   --color-fill: rgb(118 118 128 / 0.08);
   --color-fill-strong: rgb(118 118 128 / 0.16);
-  --color-hover: rgb(255 242 242);
+  --color-hover: rgb(var(--tint) / 0.06);
 
   /* Palette "Orchid Mint" (option C). Theme = brand orchid pink: app identity only (sidebar, summary cards, charts, page light). */
   --color-theme: #e8457a;
   --color-theme-hover: #e42563;
-  --color-theme-soft: #fce8ef;
-  --color-theme-soft-hover: #fad6e2;
+  --color-theme-soft: rgb(232 69 122 / 0.14);
+  --color-theme-soft-hover: rgb(232 69 122 / 0.22);
   --color-accent: #00d4b4;
   --color-accent-hover: #00b096;
   /* Text in accent on white / accent-soft (>= 4.5:1) */
   --color-accent-dark: #077c6a;
-  --color-accent-soft: #ccf9f2;
+  --color-accent-soft: rgb(0 212 180 / 0.2);
   --color-on-accent: #1d1d1f;
 
   /*
@@ -67,32 +78,32 @@
   /* Text on white: #3d5afe already reaches 5.1:1, so fg is the same hue a touch deeper for crisper links */
   --color-primary-fg: #3450ee;
   --color-primary-fg-hover: #2238c9;
-  --color-primary-soft: #ebf9ff;
-  --color-primary-soft-hover: #e6f7ff;
+  --color-primary-soft: rgb(61 90 254 / 0.12);
+  --color-primary-soft-hover: rgb(61 90 254 / 0.2);
   --color-on-primary: #ffffff;
   --color-success: #34d399;
   --color-success-hover: #28bb85;
   --color-success-fg: #1b7e5a;
-  --color-success-bg: #c3ffe8;
-  --color-success-bg-hover: #d9f7ec;
+  --color-success-bg: rgb(52 211 153 / 0.22);
+  --color-success-bg-hover: rgb(52 211 153 / 0.32);
   --color-on-success: #1d1d1f;
   --color-danger: #f04438;
   --color-danger-hover: #ed2517;
   --color-danger-fg: #d11c10;
-  --color-danger-bg: #fde9e7;
-  --color-danger-bg-hover: #fcd7d4;
+  --color-danger-bg: rgb(240 68 56 / 0.14);
+  --color-danger-bg-hover: rgb(240 68 56 / 0.22);
   --color-on-danger: #ffffff;
   --color-warning: #f79009;
   --color-warning-hover: #d57c07;
   --color-warning-fg: #a05e08;
-  --color-warning-bg: #fef4e6;
-  --color-warning-bg-hover: #feebd3;
+  --color-warning-bg: rgb(247 144 9 / 0.2);
+  --color-warning-bg-hover: rgb(247 144 9 / 0.3);
   --color-on-warning: #1d1d1f;
   --color-info: #0ba5ec;
   --color-info-hover: #098dca;
   --color-info-fg: #0975a7;
-  --color-info-bg: #b0fcff;
-  --color-info-bg-hover: #d3f0fd;
+  --color-info-bg: rgb(11 165 236 / 0.18);
+  --color-info-bg-hover: rgb(11 165 236 / 0.28);
   --color-on-info: #1d1d1f;
 
   /* Chart */
@@ -196,17 +207,25 @@
      * Gradients for solid fills (used by the grad-* utilities below). Each one runs 135deg from a lighter,
      * hue-shifted tint through the token color to a deeper neighbor hue, so the token color stays dominant.
      */
-    --grad-theme: linear-gradient(135deg, #ff8aa8 0%, #e8457a 52%, #b8329a 100%);
+    --grad-theme: linear-gradient(135deg, #ff8aa8 0%, #ff2e72 52%, #ff1994 100%);
     --grad-primary: linear-gradient(135deg, #7b8fff 0%, #3d5afe 52%, #3a3fd8 100%);
     --grad-success: linear-gradient(135deg, #6fe8b8 0%, #34d399 55%, #10b9a0 100%);
     --grad-danger: linear-gradient(135deg, #ff7a6b 0%, #f04438 55%, #d92d5f 100%);
     --grad-warning: linear-gradient(135deg, #ffc14d 0%, #f79009 55%, #e8630a 100%);
     --grad-info: linear-gradient(135deg, #4fd1ff 0%, #0ba5ec 55%, #2563eb 100%);
     --grad-accent: linear-gradient(135deg, #6ff5d8 0%, #00d4b4 55%, #0099c7 100%);
-    --grad-dark: linear-gradient(135deg, #e0e0e0 0%, #cccccc 55%, #b3b3b3 100%);
+    --grad-dark: linear-gradient(135deg, rgb(var(--tint) / 0.78) 0%, rgb(var(--tint) / 0.9) 100%);
 
     /* One px of the index4.html mockup (2400px design width, scaled to the viewport). Used by the xl app shell. */
     --mk: calc(100vw / 2400);
+    /* Page background + frosted-glass blur; user choices override both below (html[data-bg], html[data-glass]). */
+    --page-gradient: linear-gradient(120deg, #ffc48c 0%, #f58db4 48%, #8f7cf2 100%);
+    --glass-filter: blur(14px);
+    /* Tint (rgb triplet) behind ink, lines and the page heading; plus smoke-glass base. Each background overrides them. */
+    --tint: 42 10 36;
+    --smoke: 42 10 36;
+    --smoke-a: 0.42;
+    --smoke-surface: #3a1f3a;
     /* Height of the header band = Topbar logo row (h-16 logo + mb-6). The sidebar rail starts below it, level with the page title. */
     --header-h: 5.5rem;
   }
@@ -214,15 +233,10 @@
     /* Base size: every rem-based utility scales from this (16px -> 14px). */
     font-size: 87.5%;
     /*
-     * Orchid Mint light behind the glass surfaces: orchid pink and mint washes (theme/accent) with a touch of
-     * sunny yellow and indigo. Fixed so it doesn't scroll with content.
+     * "Sunrise" page background behind the glass surfaces: peach -> rose -> violet at 120deg.
+     * Fixed so it doesn't scroll with content; --color-bg is the fallback.
      */
-    background:
-      radial-gradient(56rem 40rem at 0% 0%, rgb(232 69 122 / 0.16), transparent 60%),
-      radial-gradient(60rem 44rem at 100% 0%, rgb(0 212 180 / 0.22), transparent 62%),
-      radial-gradient(56rem 42rem at 0% 100%, rgb(255 210 63 / 0.1), transparent 60%),
-      radial-gradient(68rem 50rem at 100% 100%, rgb(61 90 254 / 0.12), transparent 62%),
-      var(--color-bg);
+    background: var(--page-gradient) var(--color-bg);
     background-attachment: fixed;
   }
   body {
@@ -255,8 +269,8 @@
 @utility glass-blur {
   background-color: var(--color-glass-strong);
   border: 1px solid var(--color-glass-edge);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
 }
 
 /* Gradient fills: grad-theme, grad-primary, grad-success, grad-danger, grad-warning, grad-info, grad-accent, grad-dark.
@@ -300,6 +314,167 @@
   background-color: var(--color-dark);
   background-image: var(--grad-dark);
   background-origin: border-box;
+}
+
+/*
+ * User appearance (AppearanceMenu in the Topbar, stores/appearanceStore.ts). Sunrise + Frosted are the defaults above.
+ * Unlayered on purpose: these must beat the @theme / @layer base values for the same variables.
+ */
+/* Backgrounds: gradient + the plum/teal/indigo tint that ink, lines and heading are derived from, + the smoke-glass base color. */
+html[data-bg='aurora'] {
+  --page-gradient: linear-gradient(90deg, #3e9bff 0%, #eba6dc 50%, #aff1d0 100%);
+  --tint: 26 10 46;
+  --smoke: 20 12 50;
+  --smoke-a: 0.42;
+  --smoke-surface: #2a2150;
+}
+html[data-bg='lagoon'] {
+  --page-gradient: linear-gradient(100deg, #55c2ff 0%, #35d6b8 52%, #ddf98e 100%);
+  --tint: 6 35 43;
+  --smoke: 6 35 43;
+  --smoke-a: 0.5;
+  --smoke-surface: #14414a;
+}
+html[data-bg='midnight'] {
+  --page-gradient: linear-gradient(135deg, #14123a 0%, #4a33c9 55%, #e25cb0 100%);
+  --tint: 26 10 46;
+  --smoke: 10 8 40;
+  --smoke-a: 0.35;
+  --smoke-surface: #1d1a4d;
+  --color-heading: #f7f4ff;
+  --color-heading-muted: rgb(247 244 255 / 0.78);
+}
+
+/* Glass styles */
+html[data-glass='crystal'] {
+  --color-glass: rgb(255 255 255 / 0.26);
+  --color-glass-strong: rgb(255 255 255 / 0.34);
+  --color-glass-edge: rgb(255 255 255 / 0.55);
+  --glass-filter: blur(20px) saturate(160%);
+  --color-field: rgb(255 255 255 / 0.36);
+  --color-field-edge: rgb(255 255 255 / 0.65);
+  --color-seg-on: rgb(255 255 255 / 0.85);
+  /* Already very transparent: lift with white rather than darken */
+  --color-hover: rgb(255 255 255 / 0.3);
+}
+html[data-glass='frosted'] {
+  --color-field: rgb(255 255 255 / 0.38);
+  --color-field-edge: rgb(255 255 255 / 0.6);
+  --color-hover: rgb(var(--tint) / 0.06);
+}
+html[data-glass='milky'] {
+  --color-glass: rgb(255 255 255 / 0.72);
+  --color-glass-strong: rgb(255 255 255 / 0.78);
+  --color-glass-edge: rgb(255 255 255 / 0.85);
+  --glass-filter: blur(26px);
+  --color-field: rgb(255 255 255 / 0.55);
+  --color-field-edge: rgb(255 255 255 / 0.8);
+  /* Near-white already: a faint tint is the only visible change */
+  --color-hover: rgb(var(--tint) / 0.05);
+}
+/* Dark glass: tinted by the background, light text and lines everywhere the ink tokens are used */
+html[data-glass='smoke'] {
+  --color-glass: rgb(var(--smoke) / var(--smoke-a));
+  --color-glass-strong: rgb(var(--smoke) / calc(var(--smoke-a) + 0.1));
+  --color-glass-edge: rgb(255 255 255 / 0.22);
+  --glass-filter: blur(18px) saturate(140%);
+  --color-surface: var(--smoke-surface);
+  --color-field: rgb(255 255 255 / 0.12);
+  --color-field-edge: rgb(255 255 255 / 0.3);
+  --color-ink: #fff7fb;
+  --color-ink-2: rgb(255 247 251 / 0.86);
+  --color-muted: rgb(255 247 251 / 0.72);
+  --color-placeholder: rgb(255 247 251 / 0.45);
+  --color-line: rgb(255 255 255 / 0.16);
+  --color-line-strong: rgb(255 255 255 / 0.3);
+  --color-fill: rgb(255 255 255 / 0.12);
+  --color-fill-strong: rgb(255 255 255 / 0.2);
+  --color-hover: rgb(255 255 255 / 0.16);
+  --color-seg-on: rgb(255 255 255 / 0.92);
+  --color-seg-on-ink: #2a0a24;
+  /* Pills and links sit on dark glass: light tints of each intent instead of the dark -fg shades */
+  --color-primary-fg: #c7d2ff;
+  --color-success-fg: #a7f3d0;
+  --color-warning-fg: #fde1a8;
+  --color-info-fg: #bae6fd;
+  --color-danger-fg: #fecaca;
+  --color-accent-dark: #99f6e4;
+  /* Pastel tints (alerts, soft buttons, selected rows, notification icons) become translucent so light text stays readable */
+  --color-primary-soft: rgb(61 90 254 / 0.28);
+  --color-primary-soft-hover: rgb(61 90 254 / 0.38);
+  --color-success-bg: rgb(52 211 153 / 0.24);
+  --color-success-bg-hover: rgb(52 211 153 / 0.34);
+  --color-warning-bg: rgb(247 144 9 / 0.26);
+  --color-warning-bg-hover: rgb(247 144 9 / 0.36);
+  --color-info-bg: rgb(11 165 236 / 0.26);
+  --color-info-bg-hover: rgb(11 165 236 / 0.36);
+  --color-danger-bg: rgb(240 68 56 / 0.26);
+  --color-danger-bg-hover: rgb(240 68 56 / 0.36);
+  --color-accent-soft: rgb(0 212 180 / 0.24);
+  --color-theme-soft: rgb(232 69 122 / 0.3);
+  --color-theme-soft-hover: rgb(232 69 122 / 0.4);
+  /* "Dark" fills (promo card, sticky action bars, tooltips of the kit) turn into a lifted smoke panel */
+  --color-dark: var(--smoke-surface);
+  --color-dark-hover: var(--smoke-surface);
+  --color-on-dark: #fff7fb;
+  --grad-dark: linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.16)), linear-gradient(var(--smoke-surface), var(--smoke-surface));
+}
+
+/* Theme color (nav highlight, main buttons, stat chips). Rose is the default in @theme / @layer base. */
+html[data-theme='violet'] {
+  --color-theme: #7c5cf0;
+  --color-theme-hover: #6a47e6;
+  --color-theme-soft: rgb(124 92 240 / 0.14);
+  --color-theme-soft-hover: rgb(124 92 240 / 0.22);
+  --shadow-theme: 0 1px 2px rgb(124 92 240 / 0.3), 0 8px 20px -6px rgb(124 92 240 / 0.5);
+  --grad-theme: linear-gradient(135deg, #a48cff 0%, #7c5cf0 52%, #5b3fd6 100%);
+}
+html[data-theme='magenta'] {
+  --color-theme: #c81e6b;
+  --color-theme-hover: #b01860;
+  --color-theme-soft: rgb(200 30 107 / 0.14);
+  --color-theme-soft-hover: rgb(200 30 107 / 0.22);
+  --shadow-theme: 0 1px 2px rgb(200 30 107 / 0.3), 0 8px 20px -6px rgb(200 30 107 / 0.5);
+  --grad-theme: linear-gradient(135deg, #f0538f 0%, #c81e6b 52%, #8e1456 100%);
+}
+html[data-theme='teal'] {
+  --color-theme: #0f9b8e;
+  --color-theme-hover: #0c8579;
+  --color-theme-soft: rgb(15 155 142 / 0.14);
+  --color-theme-soft-hover: rgb(15 155 142 / 0.22);
+  --shadow-theme: 0 1px 2px rgb(15 155 142 / 0.3), 0 8px 20px -6px rgb(15 155 142 / 0.5);
+  --grad-theme: linear-gradient(135deg, #2dd4bf 0%, #0f9b8e 52%, #0b6f6a 100%);
+}
+html[data-theme='plum'] {
+  --color-theme: #3a1f3a;
+  --color-theme-hover: #2a0a24;
+  --color-theme-soft: rgb(58 31 58 / 0.14);
+  --color-theme-soft-hover: rgb(58 31 58 / 0.22);
+  --shadow-theme: 0 1px 2px rgb(58 31 58 / 0.3), 0 8px 20px -6px rgb(58 31 58 / 0.5);
+  --grad-theme: linear-gradient(135deg, #5a3a6b 0%, #3a1f3a 52%, #2a0a24 100%);
+}
+/* Dark glass: the theme color moves to its lighter shade so it still reads on a dark panel */
+html[data-theme='violet'][data-glass='smoke'] { --color-theme-soft: rgb(124 92 240 / 0.3); --color-theme-soft-hover: rgb(124 92 240 / 0.4); --color-theme: #a48cff; }
+html[data-theme='magenta'][data-glass='smoke'] { --color-theme-soft: rgb(200 30 107 / 0.3); --color-theme-soft-hover: rgb(200 30 107 / 0.4); --color-theme: #f0538f; }
+html[data-theme='teal'][data-glass='smoke'] { --color-theme-soft: rgb(15 155 142 / 0.3); --color-theme-soft-hover: rgb(15 155 142 / 0.4); --color-theme: #2dd4bf; }
+html[data-theme='plum'][data-glass='smoke'] {
+  --color-theme: #c9a6dc;
+  --color-theme-soft: rgb(201 166 220 / 0.25);
+  --color-theme-soft-hover: rgb(201 166 220 / 0.35);
+  --grad-theme: linear-gradient(135deg, #9a70b3 0%, #6b4580 52%, #4a2a5e 100%);
+}
+
+/* Combinations that need their own tuning */
+/* Clear glass over the dark Midnight gradient needs more body to keep dark text readable */
+html[data-bg='midnight'][data-glass='crystal'] {
+  --color-glass: rgb(255 255 255 / 0.5);
+  --color-glass-strong: rgb(255 255 255 / 0.58);
+  --color-field: rgb(255 255 255 / 0.55);
+}
+/* Dark glass on dark: lift it with a faint light wash so cards still separate from the page */
+html[data-bg='midnight'][data-glass='smoke'] {
+  --color-glass: rgb(255 255 255 / 0.1);
+  --color-glass-strong: rgb(255 255 255 / 0.16);
 }
 
 @layer components {

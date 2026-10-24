@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconCart, IconCheck, IconClose, IconFactory, IconPlus, IconPrinter, IconReceipt, IconTrash, IconTruck } from '@/components/icons'
 import { Alert, Button, Card, CardHeader, Select, StatusPill, TextField } from '@/components/ui'
-import { finishedGoodById, finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { finishedGoodById } from '@/features/procurement/mockData'
 import { useProcurementStore, useWizardStore } from '@/features/procurement/store'
 import { useProductionStore } from '@/features/production/store'
 import { orderStatusLabel, orderStatusTone } from '@/features/production/utils'
@@ -208,7 +209,7 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
                         placeholder="เลือกสินค้า"
                         value={l.finishedGoodId ?? ''}
                         onChange={(e) => updateOrderLine(order.id, l.id, { finishedGoodId: e.target.value || null })}
-                        options={finishedGoods.map((fg) => ({ value: fg.id, label: fg.name }))}
+                        options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))}
                         containerClassName="mb-0 min-w-56"
                       />
                     </td>

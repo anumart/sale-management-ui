@@ -205,7 +205,7 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
                         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary-fg [&>svg]:size-4">
                           <IconBox />
                         </span>
-                        <span className="font-medium">{material?.name ?? '—'}</span>
+                        <span className="font-medium">{material?.nameTh ?? '—'}</span>
                       </div>
                     </td>
                     <td className="border-y border-line py-3 pr-3 tabular-nums">

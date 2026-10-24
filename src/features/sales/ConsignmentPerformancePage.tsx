@@ -3,7 +3,8 @@ import { PageHeading } from '@/components/layout/PageHeading'
 import { IconBox, IconCart, IconMoneyBag, IconTruck, IconWarning } from '@/components/icons'
 import { Alert, Card, CardHeader, DataTable, SegmentedControl, Select, StatusPill, Tooltip, type DataTableColumn, type PillTone } from '@/components/ui'
 import { StatCard } from '@/features/dashboard/components/StatCard'
-import { finishedGoodById, finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { finishedGoodById } from '@/features/procurement/mockData'
 import { cn } from '@/lib/cn'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import {
@@ -154,7 +155,7 @@ export function ConsignmentPerformancePage() {
             value={product}
             onChange={(e) => setProduct(e.target.value)}
             placeholder="ทุกสินค้า"
-            options={finishedGoods.map((f) => ({ value: f.id, label: f.name }))}
+            options={getFinishedGoods(true).map((f) => ({ value: f.id, label: f.name }))}
             containerClassName="mb-0 w-56"
           />
           <p className="ml-auto text-sm text-muted">

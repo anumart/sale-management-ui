@@ -36,10 +36,10 @@ export function FormField({ label, htmlFor, required, error, hint, className, ch
 /** Shared input look: 48px tall, 14px radius, primary focus ring, red when invalid. */
 export const controlClass = (invalid?: boolean) =>
   cn(
-    'h-12 w-full rounded-control border bg-surface px-4 text-base text-ink outline-none',
+    'h-12 w-full rounded-control border bg-field px-4 text-base text-ink outline-none',
     'transition-[border-color,box-shadow] placeholder:text-placeholder',
     'disabled:cursor-not-allowed disabled:bg-fill',
     invalid
       ? 'border-danger shadow-[0_0_0_4px_var(--color-danger-bg)]'
-      : 'border-line-strong focus:border-primary focus:shadow-[0_0_0_4px_var(--color-primary-soft)]',
+      : 'border-field-edge focus:border-primary focus:shadow-[0_0_0_4px_var(--color-primary-soft)]',
   )

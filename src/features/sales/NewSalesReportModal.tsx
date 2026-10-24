@@ -2,7 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { IconChart } from '@/components/icons'
 import { Button, Modal, Select, TextField } from '@/components/ui'
-import { finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
 import { toast } from '@/stores/toastStore'
 import { useSalesStore } from './store'
 import { fromDateInput, toDateInput } from './utils'
@@ -38,7 +38,7 @@ export function NewSalesReportModal({ open, onClose, customerId: presetCustomerI
   }, [customerId, reports])
 
   const submit = () => {
-    const lines = finishedGoods
+    const lines = getFinishedGoods(true)
       .map((fg) => ({ finishedGoodId: fg.id, reportedQuantity: Number(qty[fg.id] ?? 0), confirmedQuantity: null }))
       .filter((l) => l.reportedQuantity > 0)
     if (!customerId || !periodFrom || !periodTo) {
@@ -90,7 +90,7 @@ export function NewSalesReportModal({ open, onClose, customerId: presetCustomerI
       </div>
       <p className="mb-2 text-control font-medium text-ink-2">จำนวนที่ขายได้</p>
       <div className="grid gap-x-4 sm:grid-cols-2">
-        {finishedGoods.map((fg) => (
+        {getFinishedGoods(true).map((fg) => (
           <TextField
             key={fg.id}
             label={fg.name}

@@ -10,15 +10,18 @@ export interface SegmentedControlProps<V extends string> {
    * dark  – pill outline, active item black (notification tabs)
    * light – gray track, active item white (button group)
    * mask  – green pill slides to the active item; labels turn dark exactly at its edge (filters in cards)
+   * aurora – glass track; the active item slides in wearing the spinning light ring of SectionTabs `aurora`
    */
-  variant?: 'dark' | 'light' | 'mask'
+  variant?: 'dark' | 'light' | 'mask' | 'aurora'
   size?: 'sm' | 'md'
   'aria-label'?: string
   className?: string
 }
 
 export function SegmentedControl<V extends string>({ variant = 'dark', ...props }: SegmentedControlProps<V>) {
-  return variant === 'mask' ? <MaskSegmentedControl {...props} /> : <PlainSegmentedControl variant={variant} {...props} />
+  if (variant === 'mask') return <MaskSegmentedControl {...props} />
+  if (variant === 'aurora') return <AuroraSegmentedControl {...props} />
+  return <PlainSegmentedControl variant={variant} {...props} />
 }
 
 function PlainSegmentedControl<V extends string>({
@@ -36,7 +39,7 @@ function PlainSegmentedControl<V extends string>({
       {...aria}
       className={cn(
         'inline-flex gap-0.5 p-1',
-        variant === 'dark' ? 'rounded-full glass shadow-card' : 'rounded-control bg-fill',
+        variant === 'dark' ? 'rounded-full glass shadow-card' : 'rounded-full border border-field-edge bg-field',
         className,
       )}
     >
@@ -53,8 +56,8 @@ function PlainSegmentedControl<V extends string>({
               'px-4 font-normal whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-200 ease-smooth active:scale-95',
               size === 'sm' ? 'h-8 text-sm' : 'h-9 text-control',
               variant === 'dark'
-                ? cn('rounded-full', active ? 'grad-dark text-on-dark shadow-sm' : 'text-ink-2 hover:text-ink')
-                : cn('rounded-[0.625rem]', active ? 'bg-surface text-ink shadow-[0_1px_3px_rgb(0_0_0/0.1),0_1px_1px_rgb(0_0_0/0.04)]' : 'text-muted hover:text-ink'),
+                ? cn('rounded-full', active ? 'bg-seg-on font-semibold text-seg-on-ink shadow-seg' : 'text-ink-2 hover:text-ink')
+                : cn('rounded-full', active ? 'bg-seg-on font-semibold text-seg-on-ink shadow-seg' : 'text-muted hover:text-ink'),
             )}
           >
             {o.label}
@@ -108,6 +111,56 @@ function MaskSegmentedControl<V extends string>({ value, options, onChange, size
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Same look as SectionTabs `aurora`: a ring-and-face indicator slides between the items. */
+function AuroraSegmentedControl<V extends string>({ value, options, onChange, size = 'md', className, ...aria }: Omit<SegmentedControlProps<V>, 'variant'>) {
+  const index = Math.max(
+    0,
+    options.findIndex((o) => o.value === value),
+  )
+  const { trackRef, itemRefs, rects, shown, ready } = useTabIndicator(index, options.length)
+  const rect = rects?.[shown]
+
+  return (
+    <div ref={trackRef} role="radiogroup" {...aria} className={cn('relative inline-flex items-center gap-1 rounded-full glass p-1.5 shadow-card', className)}>
+      {rect && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-1.5 motion-reduce:transition-none"
+          style={{
+            left: rect.left,
+            right: rect.right,
+            transition: ready ? `left 520ms ${spring}, right 520ms ${spring}` : 'none',
+          }}
+        >
+          <span className="absolute -inset-1 rounded-full opacity-50 blur-md aurora-ring" />
+          <span className="absolute inset-0 rounded-full p-[2px] aurora-ring">
+            <span className="block size-full rounded-full bg-surface" />
+          </span>
+        </span>
+      )}
+      {options.map((o, i) => (
+        <button
+          key={o.value}
+          ref={(el) => {
+            itemRefs.current[i] = el
+          }}
+          type="button"
+          role="radio"
+          aria-checked={i === index}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'relative z-10 inline-flex items-center rounded-full px-4 whitespace-nowrap transition-colors duration-300 ease-smooth active:scale-95',
+            size === 'sm' ? 'h-8 text-sm' : 'h-9 text-control',
+            i === shown ? 'font-medium text-ink' : 'text-muted hover:text-ink',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   )
 }

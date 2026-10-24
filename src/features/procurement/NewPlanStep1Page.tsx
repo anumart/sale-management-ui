@@ -6,7 +6,8 @@ import { customerById, useSalesStore } from '@/features/sales/store'
 import { formatDate } from '@/features/sales/utils'
 import { DateRangeField } from './DateRangeField'
 import { baseDemand, productsOf, usePlannableOrders, useWizardPlanLines } from './demand'
-import { computeRequiredQuantities, finishedGoods, rawMaterialById, salesHistory } from './mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { computeRequiredQuantities, finishedGoodById, rawMaterialById, salesHistory } from './mockData'
 import { useWizardStore, wizardSteps } from './store'
 import type { FinishedGood, PlanSource } from './types'
 import { roundQty } from './utils'
@@ -37,7 +38,7 @@ function OrderPicker() {
             <span className="min-w-40 flex-1">{customerById(o.customerId)?.name}</span>
             <span className="text-sm text-muted">ส่งภายใน {formatDate(o.requestedDeliveryDate)}</span>
             <span className="w-full text-sm text-ink-2 sm:w-auto">
-              {o.lines.map((l) => `${finishedGoods.find((fg) => fg.id === l.finishedGoodId)?.name} × ${l.quantity}`).join(', ')}
+              {o.lines.map((l) => `${finishedGoodById(l.finishedGoodId ?? '')?.name} × ${l.quantity}`).join(', ')}
             </span>
           </label>
         </li>
@@ -65,7 +66,7 @@ export function NewPlanStep1Page() {
   const requiredByRm = computeRequiredQuantities(planLines)
   const fromOrders = source === 'customer_orders'
   const orderedProducts = productsOf(selectedOrders)
-  const productRows = fromOrders ? finishedGoods.filter((fg) => orderedProducts.includes(fg.id)) : finishedGoods
+  const productRows = fromOrders ? getFinishedGoods().filter((fg) => orderedProducts.includes(fg.id)) : getFinishedGoods(true)
   const selectedIds = new Set(lines.map((l) => l.finishedGoodId))
   const step1Done = !fromOrders || orderIds.length > 0
   const step2Done = lines.length > 0
@@ -133,7 +134,7 @@ export function NewPlanStep1Page() {
     {
       key: 'name',
       label: 'วัตถุดิบ',
-      render: (r) => rawMaterialById(r.rawMaterialId)?.name,
+      render: (r) => rawMaterialById(r.rawMaterialId)?.nameTh,
     },
     {
       key: 'qty',

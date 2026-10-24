@@ -130,7 +130,7 @@ export function DataTable<T, K extends string | number = string | number>({
                 id="data-table-page-size"
                 value={pagination.pageSize}
                 onChange={(e) => pagination.onPageSizeChange!(Number(e.target.value))}
-                className="h-9 rounded-lg border border-line bg-surface px-2 text-ink"
+                className="h-9 rounded-lg border border-field-edge bg-field px-2 text-ink"
               >
                 {pagination.pageSizeOptions.map((n) => (
                   <option key={n}>{n}</option>

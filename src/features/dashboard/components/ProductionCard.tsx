@@ -38,7 +38,7 @@ export function ProductionCard({ data }: { data: DashboardData }) {
                 <Link
                   to="/production/orders/$orderId"
                   params={{ orderId: o.id }}
-                  className="block rounded-control border border-line bg-surface p-3.5 transition-colors hover:bg-hover"
+                  className="block rounded-control border border-field-edge bg-field p-3.5 transition-colors hover:bg-hover"
                 >
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="min-w-0 flex-1 truncate font-medium">{fg?.name}</span>

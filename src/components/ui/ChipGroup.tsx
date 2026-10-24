@@ -32,7 +32,7 @@ export function ChipGroup<V extends string | number>({ label, name, value, optio
               <label
                 htmlFor={id}
                 className={cn(
-                  'grid h-10 min-w-12 cursor-pointer place-items-center rounded-full border border-line-strong bg-surface px-4 text-control font-medium text-ink-2',
+                  'grid h-10 min-w-12 cursor-pointer place-items-center rounded-full border border-field-edge bg-field px-4 text-control font-medium text-ink-2',
                   'peer-checked:border-primary peer-checked:grad-primary peer-checked:text-on-primary',
                   'peer-focus-visible:shadow-[0_0_0_4px_var(--color-primary-soft)]',
                 )}

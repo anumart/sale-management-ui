@@ -92,7 +92,7 @@ function ScanCard({ visit }: { visit: ConsignmentVisit }) {
                   setCode(s.code)
                   inputRef.current?.focus()
                 }}
-                className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-ink-2 transition-colors hover:border-primary hover:text-primary-fg"
+                className="rounded-full border border-field-edge bg-field px-3 py-1.5 text-sm text-ink-2 transition-colors hover:border-primary hover:text-primary-fg"
               >
                 {s.label}
               </button>

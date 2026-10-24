@@ -8,11 +8,9 @@ import { dayLabel, daysOfWeek, type DayOfWeek } from './types'
 export interface AddRouteModalProps {
   open: boolean
   onClose: () => void
-  vehicleId: string | null
-  vehicleCode?: string
 }
 
-export function AddRouteModal({ open, onClose, vehicleId, vehicleCode }: AddRouteModalProps) {
+export function AddRouteModal({ open, onClose }: AddRouteModalProps) {
   const addVehicleRoute = useLogisticsStore((s) => s.addVehicleRoute)
   const [routeName, setRouteName] = useState('')
   const [runDays, setRunDays] = useState<DayOfWeek[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
@@ -29,12 +27,11 @@ export function AddRouteModal({ open, onClose, vehicleId, vehicleCode }: AddRout
     setRunDays((days) => (days.includes(day) ? days.filter((d) => d !== day) : [...days, day]))
 
   const handleSave = () => {
-    if (!vehicleId) return
     if (!routeName.trim()) {
       setError('กรุณากรอกชื่อเส้นทาง')
       return
     }
-    addVehicleRoute({ id: `vr-${Date.now()}`, vehicleId, routeName: routeName.trim(), runDays, isActive: true, stops: [] })
+    addVehicleRoute({ id: `vr-${Date.now()}`, routeName: routeName.trim(), runDays, isActive: true, stops: [] })
     toast.success(`สร้างเส้นทาง "${routeName.trim()}" แล้ว เพิ่มจุดจอดต่อได้เลย`)
     handleClose()
   }
@@ -44,7 +41,7 @@ export function AddRouteModal({ open, onClose, vehicleId, vehicleCode }: AddRout
       open={open}
       onClose={handleClose}
       title="สร้างเส้นทางรถ"
-      description={vehicleCode ? `เส้นทางประจำวันใหม่ของ ${vehicleCode}` : undefined}
+      description="เส้นทางไม่ผูกกับรถ เลือกรถตอนสร้างใบวิ่งรถ"
       icon={<IconMapPin />}
       footer={
         <>

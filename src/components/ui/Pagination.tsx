@@ -17,7 +17,7 @@ export interface PaginationProps {
 }
 
 const btn =
-  'grid h-9 min-w-9 place-items-center rounded-xl border border-line bg-surface px-2 text-control transition-colors disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:size-4'
+  'grid h-9 min-w-9 place-items-center rounded-xl border border-line bg-field px-2 text-control transition-colors disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:size-4'
 
 export function Pagination({ page, pageCount, onChange, className }: PaginationProps) {
   return (

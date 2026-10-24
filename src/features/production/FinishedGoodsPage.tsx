@@ -2,7 +2,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconEye } from '@/components/icons'
 import { Button, Card, CardHeader, DataTable, StatusPill, type DataTableColumn } from '@/components/ui'
-import { finishedGoodById, finishedGoods } from '@/features/procurement/mockData'
+import { getFinishedGoods } from '@/features/catalog/store'
+import { finishedGoodById } from '@/features/procurement/mockData'
 import type { FinishedGood } from '@/features/procurement/types'
 import { useSalesStore } from '@/features/sales/store'
 import { formatDateTime } from '@/lib/format'
@@ -32,7 +33,7 @@ function InventoryTable() {
   return (
     <Card className="mb-6">
       <CardHeader title="สต็อกสินค้าสำเร็จรูป" subtitle="จองให้คำสั่งซื้อ = LOT ที่ผลิตให้คำสั่งซื้อของลูกค้า (โจทย์ 1) ส่วนสต็อกว่างส่งไปร้านฝากขายได้ (โจทย์ 2)" />
-      <DataTable columns={columns} rows={finishedGoods} rowKey={(fg) => fg.id} emptyTitle="ยังไม่มีสินค้าสำเร็จรูป" />
+      <DataTable columns={columns} rows={getFinishedGoods()} rowKey={(fg) => fg.id} emptyTitle="ยังไม่มีสินค้าสำเร็จรูป" />
     </Card>
   )
 }
