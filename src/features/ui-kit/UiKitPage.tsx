@@ -306,9 +306,9 @@ function ButtonsShowcase() {
       <CardHeader title="Buttons" subtitle="Variants, sizes and states" />
       <div className="flex flex-col gap-5">
         <Row label="Variants">
-          <Button flat>Primary</Button>
-          <Button variant="accent" flat>Accent</Button>
-          <Button variant="dark" flat>Dark</Button>
+          <Button>Primary</Button>
+          <Button variant="accent">Accent</Button>
+          <Button variant="dark">Dark</Button>
           <Button variant="soft">Soft</Button>
           <Button variant="outline">Outline</Button>
           <Button variant="ghost">Ghost</Button>
