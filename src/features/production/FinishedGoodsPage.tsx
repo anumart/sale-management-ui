@@ -9,7 +9,7 @@ import { useSalesStore } from '@/features/sales/store'
 import { formatDateTime } from '@/lib/format'
 import { useProductionStore } from './store'
 import type { FinishedGoodsBatch } from './types'
-import { batchGradeTone, batchStatusLabel, batchStatusTone, fgPosition } from './utils'
+import { batchStatusLabel, batchStatusTone, fgPosition } from './utils'
 
 function InventoryTable() {
   const batches = useProductionStore((s) => s.batches)
@@ -57,7 +57,7 @@ export function FinishedGoodsPage() {
       ),
     },
     { key: 'for', label: 'จองให้', sortValue: (b) => b.reservedForOrderId ?? '', render: (b) => (b.reservedForOrderId ? orders.find((o) => o.id === b.reservedForOrderId)?.orderNumber : '—') },
-    { key: 'grade', label: 'เกรด', sortValue: (b) => b.gradeLevel, render: (b) => <StatusPill tone={batchGradeTone[b.gradeLevel]}>เกรด {b.gradeLevel}</StatusPill> },
+    { key: 'yield', label: 'อัตราผลผลิต', sortValue: (b) => b.yieldRate, render: (b) => <span className="tabular-nums">{b.yieldRate}%</span> },
     { key: 'barcode', label: 'บาร์โค้ด', sortValue: (b) => b.barcode, render: (b) => <span className="tabular-nums">{b.barcode}</span> },
     { key: 'expiration', label: 'หมดอายุ', sortValue: (b) => b.expirationDate, render: (b) => formatDateTime(b.expirationDate) },
     { key: 'status', label: 'สถานะ', sortValue: (b) => b.status, render: (b) => <StatusPill tone={batchStatusTone[b.status]}>{batchStatusLabel[b.status]}</StatusPill> },

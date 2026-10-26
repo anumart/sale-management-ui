@@ -6,13 +6,10 @@ import { useProductionStore } from '@/features/production/store'
 import type { RmAllocation } from '@/features/production/types'
 import { fgPosition, rmRequirementFor, rmShortages } from '@/features/production/utils'
 import { useSalesStore } from '@/features/sales/store'
+import { useSettingsStore } from '@/features/settings/store'
 import { invoiceTotal, orderStage } from '@/features/sales/utils'
 
 const DAY = 86_400_000
-/** Received-vs-ordered gap that counts as a risk (spec Risk 1: variance can exceed 10%) */
-export const VARIANCE_LIMIT = 10
-/** LOTs expiring within this many days are flagged */
-export const EXPIRY_DAYS = 7
 /** Window for the sales stat card */
 export const SALES_DAYS = 30
 
@@ -34,6 +31,8 @@ export function useDashboard() {
   const visits = useSalesStore((s) => s.visits)
   const reports = useSalesStore((s) => s.reports)
   const invoices = useSalesStore((s) => s.invoices)
+  // Risk thresholds from /settings: received-vs-ordered gap, LOT expiry warning, low yield
+  const { receiptVariancePercent, expiryWarningDays, lowYieldPercent } = useSettingsStore((s) => s.values)
 
   return useMemo(() => {
     const now = Date.now()
@@ -57,7 +56,7 @@ export function useDashboard() {
           s.lineItems
             .filter((l) => l.actualReceivedQuantity !== null && l.orderedQuantity > 0)
             .map((l) => ({ runSheet: r, line: l, pct: ((l.actualReceivedQuantity! - l.orderedQuantity) / l.orderedQuantity) * 100 }))
-            .filter((v) => Math.abs(v.pct) > VARIANCE_LIMIT),
+            .filter((v) => Math.abs(v.pct) > receiptVariancePercent),
         ),
       )
 
@@ -72,7 +71,7 @@ export function useDashboard() {
     // Production
     const queued = productionOrders.filter((p) => p.status === 'confirmed' || p.status === 'draft')
     const inProduction = productionOrders.filter((p) => p.status === 'in_production')
-    const lowYield = productionOrders.filter((p) => p.status === 'completed' && p.yieldRate !== null && p.yieldRate < 95)
+    const lowYield = productionOrders.filter((p) => p.status === 'completed' && p.yieldRate !== null && p.yieldRate < lowYieldPercent)
     const lineDown = lines.filter((l) => l.status === 'maintenance')
 
     // Raw materials the orders waiting for production would need, against what's free in stock (spec Risk 2)
@@ -87,7 +86,7 @@ export function useDashboard() {
     const stock = getFinishedGoods().map((fg) => ({ fg, ...fgPosition(batches, fg.id) }))
     const availableUnits = stock.reduce((sum, s) => sum + s.available, 0)
     const liveLots = batches.filter((b) => b.remainingQuantity > 0 && b.status !== 'expired' && b.status !== 'depleted')
-    const expiring = liveLots.filter((b) => new Date(b.expirationDate).getTime() - now < EXPIRY_DAYS * DAY)
+    const expiring = liveLots.filter((b) => new Date(b.expirationDate).getTime() - now < expiryWarningDays * DAY)
 
     // Sales
     const draftVisits = visits.filter((v) => v.status === 'draft')
@@ -136,7 +135,7 @@ export function useDashboard() {
       runSheets,
       productionOrders,
     }
-  }, [plans, purchaseOrders, runSheets, pendingPickups, lines, rmStock, productionOrders, batches, customerOrders, imports, visits, reports, invoices])
+  }, [plans, purchaseOrders, runSheets, pendingPickups, lines, rmStock, productionOrders, batches, customerOrders, imports, visits, reports, invoices, receiptVariancePercent, expiryWarningDays, lowYieldPercent])
 }
 
 export type DashboardData = ReturnType<typeof useDashboard>

@@ -91,11 +91,11 @@ function ImportProfileCard({ customer }: { customer: Customer }) {
         <Select
           label="ประเภทไฟล์"
           value={draft.fileType}
-          onChange={(e) => set({ fileType: e.target.value as ImportFormatProfile['fileType'] })}
+          onChange={(fileType) => set({ fileType })}
           options={[
-            { value: 'xlsx', label: 'ไฟล์ Excel (.xlsx)' },
-            { value: 'csv', label: 'ไฟล์ CSV' },
-            { value: 'pdf', label: 'ฟอร์ม PDF' },
+            { value: 'xlsx' as const, label: 'ไฟล์ Excel (.xlsx)' },
+            { value: 'csv' as const, label: 'ไฟล์ CSV' },
+            { value: 'pdf' as const, label: 'ฟอร์ม PDF' },
           ]}
         />
         <TextField label="แถวหัวตาราง" type="number" min={1} value={draft.headerRow} onChange={(e) => set({ headerRow: Math.max(1, Number(e.target.value) || 1) })} />
@@ -123,7 +123,7 @@ function ImportProfileCard({ customer }: { customer: Customer }) {
                 aria-label="สินค้าของเรา"
                 placeholder="สินค้าของเรา"
                 value={m.finishedGoodId}
-                onChange={(e) => setSku(i, { finishedGoodId: e.target.value })}
+                onChange={(finishedGoodId) => setSku(i, { finishedGoodId })}
                 options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))}
                 containerClassName="mb-0 min-w-56 flex-1"
               />

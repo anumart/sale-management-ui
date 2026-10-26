@@ -88,7 +88,7 @@ export function BomEditorModal({ open, onClose, finishedGoodId, draft, copyFrom 
               aria-label="วัตถุดิบ"
               placeholder="เลือกวัตถุดิบ"
               value={row.rawMaterialId}
-              onChange={(e) => setRow(index, { rawMaterialId: e.target.value })}
+              onChange={(rawMaterialId) => setRow(index, { rawMaterialId })}
               options={options}
             />
             <TextField

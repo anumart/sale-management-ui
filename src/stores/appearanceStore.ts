@@ -1,17 +1,16 @@
 import { create } from 'zustand'
 
-/** Page background gradients; each has a matching `html[data-bg='…']` block in index.css. */
+/** Page background photos painted by AppBackground; each has a matching `html[data-bg='…']` block in index.css (colors are the thumbnail's fallback gradient). */
 export const backgrounds = [
-  { id: 'sunrise', label: 'Sunrise', colors: ['#ffc48c', '#f58db4', '#8f7cf2'] },
-  { id: 'aurora', label: 'Aurora', colors: ['#3e9bff', '#eba6dc', '#aff1d0'] },
-  { id: 'lagoon', label: 'Lagoon', colors: ['#55c2ff', '#35d6b8', '#ddf98e'] },
-  { id: 'midnight', label: 'Midnight', colors: ['#14123a', '#4a33c9', '#e25cb0'] },
+  { id: 'floral', label: 'Floral', colors: ['#8fbcf5', '#f7c6d9', '#fbd9b8'], image: '/images/flower-meadow-background.webp' },
+  { id: 'highland', label: 'Highland', colors: ['#8a8fe0', '#e9a0c8', '#4f8f4a'], image: '/images/highland-dusk-background.webp' },
+  { id: 'bloom', label: 'Bloom', colors: ['#3fa4f5', '#fbd6dc', '#f0508a'], image: '/images/bloom-meadow-background.webp' },
 ] as const
 
 /** Glass surface styles; each has a matching `html[data-glass='…']` block in index.css. */
 export const glassStyles = [
   { id: 'frosted', label: 'Frosted', hint: 'สมดุล' },
-  { id: 'crystal', label: 'Crystal', hint: 'ใสกว่า' },
+  { id: 'opaque', label: 'Opaque', hint: 'ขุ่นกว่า Milky' },
   { id: 'milky', label: 'Milky', hint: 'อ่านง่ายสุด' },
   { id: 'smoke', label: 'Smoke', hint: 'โทนเข้ม' },
 ] as const
@@ -30,7 +29,7 @@ export type GlassId = (typeof glassStyles)[number]['id']
 export type ThemeId = (typeof themeColors)[number]['id']
 
 const STORAGE_KEY = 'appearance'
-const defaults = { background: 'sunrise' as BackgroundId, glass: 'frosted' as GlassId, theme: 'rose' as ThemeId }
+const defaults = { background: 'floral' as BackgroundId, glass: 'frosted' as GlassId, theme: 'rose' as ThemeId }
 
 function load(): typeof defaults {
   try {

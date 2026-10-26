@@ -8,6 +8,7 @@ import type {
   EmailImportStatus,
   Invoice,
   InvoiceStatus,
+  OrderChannel,
   SalesReport,
   SalesReportStatus,
   ShopStockLine,
@@ -31,6 +32,13 @@ export const fromDateInput = (value: string, time = '00:00') => new Date(`${valu
 export const customerTypeLabel: Record<CustomerType, string> = { direct: 'ขายขาด', consignment: 'ฝากขาย' }
 export const customerTypeTone: Record<CustomerType, PillTone> = { direct: 'primary', consignment: 'accent' }
 
+export const channelLabel: Record<OrderChannel, string> = { email: 'อีเมล', phone: 'โทรศัพท์', platform: 'Platform', manual: 'คีย์เอง' }
+export const channelTone: Record<OrderChannel, PillTone> = { email: 'info', phone: 'accent', platform: 'primary', manual: 'neutral' }
+
+/** Export goods are handed over at the airport, not at the buyer's address. */
+export const EXPORT_DROP_POINT = 'สนามบินสุวรรณภูมิ — อาคารคลังสินค้า (ส่งออก)'
+export const isExportCustomer = (customer: { country?: string | null } | undefined) => !!customer?.country
+
 export const importStatusLabel: Record<EmailImportStatus, string> = { parsed: 'อ่านสำเร็จ', needs_review: 'รอตรวจสอบ', failed: 'อ่านไม่สำเร็จ' }
 export const importStatusTone: Record<EmailImportStatus, PillTone> = { parsed: 'success', needs_review: 'warning', failed: 'danger' }
 
@@ -53,8 +61,8 @@ export const orderStageTone: Record<CustomerOrderStage, PillTone> = {
   cancelled: 'neutral',
 }
 
-export const visitStatusLabel: Record<VisitStatus, string> = { draft: 'ร่าง', signed: 'ร้านลงชื่อแล้ว' }
-export const visitStatusTone: Record<VisitStatus, PillTone> = { draft: 'gray', signed: 'success' }
+export const visitStatusLabel: Record<VisitStatus, string> = { draft: 'ร่าง', signed: 'ร้านลงชื่อแล้ว', cancelled: 'ยกเลิก' }
+export const visitStatusTone: Record<VisitStatus, PillTone> = { draft: 'gray', signed: 'success', cancelled: 'neutral' }
 
 export const reportStatusLabel: Record<SalesReportStatus, string> = { pending: 'รอตรวจ', confirmed: 'ยืนยันแล้ว', invoiced: 'ออกใบแจ้งหนี้แล้ว' }
 export const reportStatusTone: Record<SalesReportStatus, PillTone> = { pending: 'warning', confirmed: 'info', invoiced: 'success' }

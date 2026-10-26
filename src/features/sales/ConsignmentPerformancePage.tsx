@@ -4,6 +4,7 @@ import { IconBox, IconCart, IconMoneyBag, IconTruck, IconWarning } from '@/compo
 import { Alert, Card, CardHeader, DataTable, SegmentedControl, Select, StatusPill, Tooltip, type DataTableColumn, type PillTone } from '@/components/ui'
 import { StatCard } from '@/features/dashboard/components/StatCard'
 import { getFinishedGoods } from '@/features/catalog/store'
+import { useSettingsStore } from '@/features/settings/store'
 import { finishedGoodById } from '@/features/procurement/mockData'
 import { cn } from '@/lib/cn'
 import { formatCurrency, formatNumber } from '@/lib/format'
@@ -12,12 +13,9 @@ import {
   formatPct,
   groupBy,
   isoWeek,
-  MIN_DELIVERED_FOR_RATE,
   missingReports,
   sellThrough,
   totalsOf,
-  WASTE_DANGER,
-  WASTE_WARN,
   wasteRate,
   type Totals,
 } from './consignmentReport'
@@ -35,7 +33,6 @@ interface Row extends Totals {
   detail: string
 }
 
-const wasteTone = (rate: number | null): PillTone => (rate === null ? 'gray' : rate >= WASTE_DANGER ? 'danger' : rate >= WASTE_WARN ? 'warning' : 'success')
 const shortDate = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
 
 /**
@@ -48,6 +45,10 @@ export function ConsignmentPerformancePage() {
   const history = useSalesStore((s) => s.consignmentWeeks)
   const visits = useSalesStore((s) => s.visits)
   const reports = useSalesStore((s) => s.reports)
+  // Thresholds from /settings; tiny deliveries aren't ranked because a few spoiled units would read as a huge rate
+  const { wasteWarnPercent, wasteDangerPercent, wasteMinDelivered } = useSettingsStore((s) => s.values)
+  const wasteTone = (rate: number | null): PillTone =>
+    rate === null ? 'gray' : rate >= wasteDangerPercent ? 'danger' : rate >= wasteWarnPercent ? 'warning' : 'success'
   const [range, setRange] = useState<Range>('8')
   const [chain, setChain] = useState('')
   const [product, setProduct] = useState('')
@@ -97,12 +98,12 @@ export function ConsignmentPerformancePage() {
       chainRows,
       products: [...groupBy(cells, (c) => c.finishedGoodId)].map(([id, rows]) => ({ id, ...totalsOf(rows, byId) })).sort((a, b) => b.net - a.net),
       watch: branchRows
-        .filter((r) => r.delivered >= MIN_DELIVERED_FOR_RATE)
+        .filter((r) => r.delivered >= wasteMinDelivered)
         .sort((a, b) => (wasteRate(b) ?? 0) - (wasteRate(a) ?? 0))
         .slice(0, 5),
       customerName: (id: string) => byId.get(id)?.name ?? id,
     }
-  }, [customers, history, visits, reports, range, chain, product])
+  }, [customers, history, visits, reports, range, chain, product, wasteMinDelivered])
 
   const { totals } = data
   const columns: DataTableColumn<Row>[] = [
@@ -145,7 +146,7 @@ export function ConsignmentPerformancePage() {
           <Select
             label="เครือห้าง"
             value={chain}
-            onChange={(e) => setChain(e.target.value)}
+            onChange={setChain}
             placeholder="ทุกเครือ"
             options={chains.map((c) => ({ value: c, label: c }))}
             containerClassName="mb-0 w-48"
@@ -153,7 +154,7 @@ export function ConsignmentPerformancePage() {
           <Select
             label="สินค้า"
             value={product}
-            onChange={(e) => setProduct(e.target.value)}
+            onChange={setProduct}
             placeholder="ทุกสินค้า"
             options={getFinishedGoods(true).map((f) => ({ value: f.id, label: f.name }))}
             containerClassName="mb-0 w-56"
@@ -215,9 +216,9 @@ export function ConsignmentPerformancePage() {
           </Card>
 
           <Card>
-            <CardHeader title="สาขาที่ของเสียสูง" subtitle={`ของเสีย ÷ ของที่ส่ง · เฉพาะสาขาที่ส่งตั้งแต่ ${MIN_DELIVERED_FOR_RATE} ชิ้นขึ้นไป`} />
+            <CardHeader title="สาขาที่ของเสียสูง" subtitle={`ของเสีย ÷ ของที่ส่ง · เฉพาะสาขาที่ส่งตั้งแต่ ${formatNumber(wasteMinDelivered)} ชิ้นขึ้นไป`} />
             {data.watch.length === 0 ? (
-              <p className="text-sm text-muted">ไม่มีสาขาที่ส่งถึง {MIN_DELIVERED_FOR_RATE} ชิ้นในช่วงนี้</p>
+              <p className="text-sm text-muted">ไม่มีสาขาที่ส่งถึง {formatNumber(wasteMinDelivered)} ชิ้นในช่วงนี้</p>
             ) : (
               <ul className="flex flex-col gap-2.5">
                 {data.watch.map((r) => {
@@ -245,7 +246,7 @@ export function ConsignmentPerformancePage() {
               </ul>
             )}
             <p className="mt-3 text-xs text-muted">
-              เกิน {WASTE_WARN}% เป็นสีส้ม เกิน {WASTE_DANGER}% เป็นสีแดง
+              ตั้งแต่ {wasteWarnPercent}% เป็นสีส้ม ตั้งแต่ {wasteDangerPercent}% เป็นสีแดง
             </p>
           </Card>
         </div>

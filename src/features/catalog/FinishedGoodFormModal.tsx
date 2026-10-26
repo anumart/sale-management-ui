@@ -43,8 +43,9 @@ export function FinishedGoodFormModal({ open, onClose, product }: FinishedGoodFo
     )
   }, [open, product])
 
-  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
+  const setValue = (key: keyof typeof emptyForm) => (value: string) => setForm((f) => ({ ...f, [key]: value }))
 
   const handleSave = () => {
     const sku = form.sku.trim()
@@ -97,7 +98,7 @@ export function FinishedGoodFormModal({ open, onClose, product }: FinishedGoodFo
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label="รหัสสินค้า (SKU)" required placeholder="FG-BQ-004" value={form.sku} onChange={set('sku')} error={errors.sku} />
-        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={set('categoryId')} options={categoryOptions} error={errors.categoryId} />
+        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={setValue('categoryId')} options={categoryOptions} error={errors.categoryId} />
         <TextField label="ชื่อสินค้า" required placeholder="ช่อกุหลาบชมพู" value={form.name} onChange={set('name')} error={errors.name} containerClassName="sm:col-span-2" />
         <TextField label="หน่วยขาย" required placeholder="ช่อ" value={form.unit} onChange={set('unit')} error={errors.unit} />
         <TextField

@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn'
 import { Checkbox } from './Checkbox'
 import { EmptyState } from './EmptyState'
 import { Pagination } from './Pagination'
+import { Select } from './Select'
 import { Spinner } from './Spinner'
 
 export interface DataTableColumn<T> {
@@ -68,6 +69,8 @@ export interface DataTableProps<T, K extends string | number = string | number> 
   onPageChange?: (page: number) => void
   /** Server-side pagination: takes over the footer entirely; `rows` must already be the current page. */
   pagination?: DataTableServerPagination
+  /** Footer pager style — `numbers` (default) or `jump` (first / prev / page input / next / last). */
+  paginationVariant?: 'numbers' | 'jump'
 
   /** Bulk-select (Data table variant). Provide both to turn on the checkbox column; the "N selected" bar shows only with `bulkActions`. */
   selected?: Set<K>
@@ -96,6 +99,7 @@ export function DataTable<T, K extends string | number = string | number>({
   page: pageProp,
   onPageChange,
   pagination,
+  paginationVariant,
   selected,
   onSelectedChange,
   bulkActions,
@@ -125,22 +129,20 @@ export function DataTable<T, K extends string | number = string | number>({
         <div className="flex items-center gap-2.5">
           {pagination.pageSizeOptions && pagination.pageSize !== undefined && pagination.onPageSizeChange && (
             <>
-              <label htmlFor="data-table-page-size">แถวต่อหน้า</label>
-              <select
-                id="data-table-page-size"
-                value={pagination.pageSize}
-                onChange={(e) => pagination.onPageSizeChange!(Number(e.target.value))}
-                className="h-9 rounded-lg border border-field-edge bg-field px-2 text-ink"
-              >
-                {pagination.pageSizeOptions.map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </select>
+              <span id="data-table-page-size-label">แถวต่อหน้า</span>
+              <Select
+                aria-label="แถวต่อหน้า"
+                size="sm"
+                value={String(pagination.pageSize)}
+                onChange={(n) => pagination.onPageSizeChange!(Number(n))}
+                options={pagination.pageSizeOptions.map((n) => ({ value: String(n), label: String(n) }))}
+                containerClassName="w-24"
+              />
             </>
           )}
           <span>{pagination.total ? `แสดง ${pagination.start + 1}–${pagination.end} จาก ${pagination.total}` : 'แสดง 0 จาก 0'}</span>
         </div>
-        <Pagination page={pagination.page} pageCount={pagination.pageCount} onChange={pagination.onPageChange} />
+        <Pagination page={pagination.page} pageCount={pagination.pageCount} onChange={pagination.onPageChange} variant={paginationVariant} />
       </footer>
     )
   } else {
@@ -165,7 +167,7 @@ export function DataTable<T, K extends string | number = string | number>({
       footer = (
         <footer className="mt-5 flex flex-wrap items-center justify-between gap-4 text-control text-muted">
           <span>{total ? `แสดง ${start + 1}–${Math.min(start + pageSize, total)} จาก ${total}` : 'แสดง 0 จาก 0'}</span>
-          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+          <Pagination page={page} pageCount={pageCount} onChange={setPage} variant={paginationVariant} />
         </footer>
       )
       pageRows = slice

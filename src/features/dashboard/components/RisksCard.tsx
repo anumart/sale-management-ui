@@ -7,7 +7,8 @@ import { roundQty } from '@/features/production/utils'
 import { formatDate } from '@/features/sales/utils'
 import { cn } from '@/lib/cn'
 import { formatNumber } from '@/lib/format'
-import { EXPIRY_DAYS, VARIANCE_LIMIT, type DashboardData } from '../useDashboard'
+import { useSettingsStore } from '@/features/settings/store'
+import type { DashboardData } from '../useDashboard'
 
 interface Risk {
   key: string
@@ -19,6 +20,7 @@ interface Risk {
 
 /** The risks the spec calls out (receipt variance, bottleneck raw materials, low yield) plus late and expiring items. */
 export function RisksCard({ data }: { data: DashboardData }) {
+  const { receiptVariancePercent, expiryWarningDays, lowYieldPercent } = useSettingsStore((s) => s.values)
   const risks: Risk[] = [
     ...data.lineDown.map((l) => ({ key: `line-${l.id}`, level: 'danger' as const, title: `${l.name} ปิดซ่อม`, detail: 'ผลิตไม่ได้จนกว่าจะเปิดไลน์', to: '/production/lines' })),
     ...(data.shortages.length
@@ -48,7 +50,7 @@ export function RisksCard({ data }: { data: DashboardData }) {
       key: `var-${v.line.id}`,
       level: 'warning' as const,
       title: `รับ${v.line.rawMaterialName} ${v.pct < 0 ? 'ขาด' : 'เกิน'} ${Math.abs(Math.round(v.pct))}%`,
-      detail: `${v.runSheet.runSheetNumber} · สั่ง ${formatNumber(v.line.orderedQuantity)} ได้ ${formatNumber(v.line.actualReceivedQuantity ?? 0)} ${v.line.unit} (เกิน ${VARIANCE_LIMIT}%)`,
+      detail: `${v.runSheet.runSheetNumber} · สั่ง ${formatNumber(v.line.orderedQuantity)} ได้ ${formatNumber(v.line.actualReceivedQuantity ?? 0)} ${v.line.unit} (เกิน ${receiptVariancePercent}%)`,
       to: '/logistics/run-sheets',
     })),
     ...(data.expiring.length
@@ -70,8 +72,8 @@ export function RisksCard({ data }: { data: DashboardData }) {
     ...data.lowYield.map((o) => ({
       key: `yield-${o.id}`,
       level: 'warning' as const,
-      title: `${o.orderNumber} yield ต่ำ (เกรด C)`,
-      detail: `ได้ ${o.yieldRate}% ของที่วางแผน`,
+      title: `${o.orderNumber} ผลผลิตต่ำ`,
+      detail: `ได้ ${o.yieldRate}% ของที่วางแผน (เกณฑ์ ${lowYieldPercent}%)`,
       to: '/production/orders',
     })),
     ...data.overdue.map((i) => ({
@@ -85,7 +87,7 @@ export function RisksCard({ data }: { data: DashboardData }) {
 
   return (
     <Card>
-      <CardHeader title="ความเสี่ยง" subtitle={risks.length ? `พบ ${risks.length} เรื่องที่ควรจัดการ` : `ตรวจวัตถุดิบ การรับของ ผลผลิต และ LOT ที่หมดอายุภายใน ${EXPIRY_DAYS} วัน`} />
+      <CardHeader title="ความเสี่ยง" subtitle={risks.length ? `พบ ${risks.length} เรื่องที่ควรจัดการ` : `ตรวจวัตถุดิบ การรับของ ผลผลิต และ LOT ที่หมดอายุภายใน ${expiryWarningDays} วัน`} />
       {risks.length === 0 ? (
         <p className="flex items-center gap-2 rounded-control bg-success-bg px-4 py-3 text-sm text-success-fg [&>svg]:size-5">
           <IconCheck /> ไม่พบความเสี่ยง

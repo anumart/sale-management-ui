@@ -306,13 +306,28 @@ function ButtonsShowcase() {
       <CardHeader title="Buttons" subtitle="Variants, sizes and states" />
       <div className="flex flex-col gap-5">
         <Row label="Variants">
-          <Button>Primary</Button>
-          <Button variant="accent">Accent</Button>
-          <Button variant="dark">Dark</Button>
+          <Button flat>Primary</Button>
+          <Button variant="accent" flat>Accent</Button>
+          <Button variant="dark" flat>Dark</Button>
           <Button variant="soft">Soft</Button>
           <Button variant="outline">Outline</Button>
           <Button variant="ghost">Ghost</Button>
+        </Row>
+        <Row label="Intents">
+          <Button>Primary</Button>
+          <Button variant="success">Success</Button>
+          <Button variant="warning">Warning</Button>
+          <Button variant="info">Info</Button>
           <Button variant="danger">Danger</Button>
+          <Button variant="accent">Accent</Button>
+          <Button variant="dark">Dark</Button>
+        </Row>
+        <Row label="Outlined">
+          {(['primary', 'success', 'warning', 'info', 'danger', 'accent', 'dark', 'soft'] as const).map((v) => (
+            <Button key={v} variant={v} outlined>
+              {v[0].toUpperCase() + v.slice(1)}
+            </Button>
+          ))}
         </Row>
         <Row label="Sizes">
           <Button size="sm">Small</Button>
@@ -342,6 +357,18 @@ function ButtonsShowcase() {
           </Button>
           <Button iconOnly variant="soft" aria-label="Download">
             <IconDownload />
+          </Button>
+          <Button iconOnly variant="success" aria-label="Approve">
+            <IconCheck />
+          </Button>
+          <Button iconOnly variant="warning" aria-label="Warning">
+            <IconWarning />
+          </Button>
+          <Button iconOnly variant="info" aria-label="Info">
+            <IconInfo />
+          </Button>
+          <Button iconOnly variant="ghost" aria-label="More">
+            <IconPlus />
           </Button>
           <Button iconOnly variant="danger" aria-label="Delete">
             <IconTrash />
@@ -476,6 +503,7 @@ const COUNTRIES = ['Thailand', 'Japan', 'Singapore', 'Vietnam', 'Malaysia', 'Ind
 
 function FormControlsShowcase() {
   const [country, setCountry] = useState('')
+  const [propertyKind, setPropertyKind] = useState('')
   const [chip, setChip] = useState('m')
   const [tab, setTab] = useState('all')
   const options = COUNTRIES.filter((c) => c.toLowerCase().includes(country.toLowerCase()))
@@ -490,6 +518,8 @@ function FormControlsShowcase() {
         <Select
           label="Select"
           placeholder="Choose one"
+          value={propertyKind}
+          onChange={setPropertyKind}
           options={[
             { value: 'house', label: 'House' },
             { value: 'villa', label: 'Villa' },

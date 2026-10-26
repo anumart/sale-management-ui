@@ -63,7 +63,7 @@ function ScanCard({ visit }: { visit: ConsignmentVisit }) {
         <TextField
           ref={inputRef}
           label="บาร์โค้ดหรือเลข LOT"
-          placeholder="FG-2026-0101-A"
+          placeholder="FG-2026-0101"
           autoComplete="off"
           value={code}
           onChange={(e) => setCode(e.target.value)}

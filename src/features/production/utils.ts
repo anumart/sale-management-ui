@@ -1,6 +1,6 @@
 import type { PillTone } from '@/components/ui'
 import { activeBomEntries } from '@/features/catalog/store'
-import type { BatchGrade, BatchStatus, FinishedGoodsBatch, ProductionLine, ProductionLineStatus, ProductionOrderStatus, ProductionSource, QcStatus, RawMaterialStock, RmAllocation, RmShortage } from './types'
+import type { BatchStatus, FinishedGoodsBatch, ProductionLine, ProductionLineStatus, ProductionOrderStatus, ProductionSource, QcStatus, RawMaterialStock, RmAllocation, RmShortage } from './types'
 
 export const roundQty = (value: number) => Math.round(value * 100) / 100
 
@@ -30,6 +30,7 @@ export const orderStatusLabel: Record<ProductionOrderStatus, string> = {
 
 export const sourceLabel: Record<ProductionSource, string> = {
   customer_order: 'คำสั่งซื้อลูกค้า',
+  consignment_route: 'ยอดประเมินสายฝากขาย',
   manual: 'พนักงานเลือกผลิต',
 }
 
@@ -44,8 +45,6 @@ export const qcStatusLabel: Record<QcStatus, string> = {
   failed: 'ไม่ผ่าน',
 }
 
-export const batchGradeTone: Record<BatchGrade, PillTone> = { A: 'success', B: 'warning', C: 'danger' }
-
 export const batchStatusTone: Record<BatchStatus, PillTone> = {
   available: 'success',
   reserved: 'info',
@@ -57,13 +56,6 @@ export const batchStatusLabel: Record<BatchStatus, string> = {
   reserved: 'จองแล้ว',
   depleted: 'หมดแล้ว',
   expired: 'หมดอายุ',
-}
-
-/** Yield-based grade per FLOW 7: A 98-100%, B 95-97%, C below 95%. */
-export function gradeForYield(yieldRate: number): BatchGrade {
-  if (yieldRate >= 98) return 'A'
-  if (yieldRate >= 95) return 'B'
-  return 'C'
 }
 
 /** BOM x quantity for one finished good. */

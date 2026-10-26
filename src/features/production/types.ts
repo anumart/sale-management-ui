@@ -1,10 +1,9 @@
 export type ProductionLineStatus = 'available' | 'in_use' | 'maintenance'
 export type ProductionOrderStatus = 'draft' | 'confirmed' | 'in_production' | 'completed'
 export type QcStatus = 'pending' | 'passed' | 'failed'
-export type BatchGrade = 'A' | 'B' | 'C'
 export type BatchStatus = 'available' | 'reserved' | 'depleted' | 'expired'
-/** Why the order exists: a customer's emailed order (scenario 1) or a staff pick for stock / consignment (scenario 2). */
-export type ProductionSource = 'customer_order' | 'manual'
+/** Why the order exists: a customer's order (email, phone or export platform), a consignment route's estimate for one delivery date, or a staff pick for stock. */
+export type ProductionSource = 'customer_order' | 'consignment_route' | 'manual'
 
 /** A sail-through production line (FLOW 4-6 §17 ProductionLine) — capacity + which finished goods it can run. */
 export interface ProductionLine {
@@ -40,6 +39,11 @@ export interface ProductionOrder {
   customerOrderId: string | null
   /** Customer the goods are meant for — the order's customer, or the consignment shop staff picked (optional). */
   customerId: string | null
+  /** source = consignment_route: one order per route × delivery date × product, sized from the route's confirmed estimate */
+  consignmentRouteId?: string | null
+  consignmentEstimateId?: string | null
+  /** yyyy-mm-dd the goods are meant to be delivered */
+  deliveryDate?: string | null
   finishedGoodId: string
   plannedQuantity: number
   actualQuantity: number | null
@@ -72,7 +76,6 @@ export interface FinishedGoodsBatch {
   remainingQuantity: number
   /** Customer order this LOT is held for (scenario 1); null = free stock */
   reservedForOrderId: string | null
-  gradeLevel: BatchGrade
   yieldRate: number
   expirationDate: string
   barcode: string
@@ -87,6 +90,9 @@ export interface CreateProductionOrderInput {
   source: ProductionSource
   customerOrderId: string | null
   customerId: string | null
+  consignmentRouteId?: string | null
+  consignmentEstimateId?: string | null
+  deliveryDate?: string | null
 }
 
 /** One raw material that can't cover a requested production quantity. */

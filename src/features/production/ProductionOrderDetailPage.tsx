@@ -4,13 +4,15 @@ import { PageHeading } from '@/components/layout/PageHeading'
 import { IconCheck, IconPower } from '@/components/icons'
 import { Alert, Button, Card, CardHeader, SegmentedControl, StatusPill, TextField } from '@/components/ui'
 import { finishedGoodById, rawMaterialById } from '@/features/procurement/mockData'
+import { useConsignmentStore } from '@/features/sales/consignmentStore'
 import { useCustomer, useSalesStore } from '@/features/sales/store'
+import { formatDate } from '@/features/sales/utils'
 import { formatDateTime } from '@/lib/format'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { lineById, useProductionStore } from './store'
 import type { QcStatus } from './types'
-import { batchGradeTone, orderStatusLabel, orderStatusTone, qcStatusLabel, qcStatusTone, roundQty, sourceLabel } from './utils'
+import { orderStatusLabel, orderStatusTone, qcStatusLabel, qcStatusTone, roundQty, sourceLabel } from './utils'
 
 export interface ProductionOrderDetailPageProps {
   orderId: string
@@ -25,6 +27,8 @@ export function ProductionOrderDetailPage({ orderId }: ProductionOrderDetailPage
   const completeProduction = useProductionStore((s) => s.completeProduction)
   const customerOrder = useSalesStore((s) => s.orders.find((o) => o.id === order?.customerOrderId))
   const customer = useCustomer(order?.customerId)
+  const route = useConsignmentStore((s) => s.routes.find((r) => r.id === order?.consignmentRouteId))
+  const estimate = useConsignmentStore((s) => s.estimates.find((e) => e.id === order?.consignmentEstimateId))
 
   const [operatorName, setOperatorName] = useState('')
   const [actualQuantity, setActualQuantity] = useState('')
@@ -105,6 +109,10 @@ export function ProductionOrderDetailPage({ orderId }: ProductionOrderDetailPage
             {customerOrder ? (
               <Link to="/sales/orders/$orderId" params={{ orderId: customerOrder.id }} className="text-base font-medium text-primary-fg hover:underline">
                 {customerOrder.orderNumber} · {customer?.name}
+              </Link>
+            ) : route ? (
+              <Link to="/sales/estimates/$estimateId" params={{ estimateId: estimate?.id ?? '' }} className="text-base font-medium text-primary-fg hover:underline">
+                สาย {route.code} {route.name} · ส่ง {formatDate(order.deliveryDate ?? '')}
               </Link>
             ) : (
               <p className="text-base font-medium">{customer ? `${customer.name} (ฝากขาย)` : 'เข้าสต็อก'}</p>
@@ -301,7 +309,7 @@ export function ProductionOrderDetailPage({ orderId }: ProductionOrderDetailPage
                 ? `จองไว้ให้ ${customerOrder?.orderNumber ?? 'คำสั่งซื้อของลูกค้า'} ใช้ฝากขายไม่ได้`
                 : 'สต็อกว่าง สแกนเข้าร้านฝากขายได้'
             }
-            action={<StatusPill tone={batchGradeTone[batch.gradeLevel]}>เกรด {batch.gradeLevel}</StatusPill>}
+            action={<span className="text-sm text-muted tabular-nums">อัตราผลผลิต {batch.yieldRate}%</span>}
           />
           <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
             <div>

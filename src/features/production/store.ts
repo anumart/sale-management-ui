@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { initialBatches, initialOrders, initialRmStock, productionLines } from './mockData'
 import type { CreateProductionOrderInput, FinishedGoodsBatch, ProductionLine, ProductionOrder, ProductionOrderStatus, QcStatus, RawMaterialStock, RmAllocation, RmShortage } from './types'
-import { gradeForYield, rmRequirementFor, rmShortages, roundQty } from './utils'
+import { rmRequirementFor, rmShortages, roundQty } from './utils'
 
 type CreateResult = { ok: true; order: ProductionOrder } | { ok: false; shortages: RmShortage[]; error: string }
 
@@ -61,11 +61,14 @@ export const useProductionStore = create<ProductionState>((set, get) => ({
       source: input.source,
       customerOrderId: input.customerOrderId,
       customerId: input.customerId,
+      consignmentRouteId: input.consignmentRouteId ?? null,
+      consignmentEstimateId: input.consignmentEstimateId ?? null,
+      deliveryDate: input.deliveryDate ?? null,
       finishedGoodId: input.finishedGoodId,
       plannedQuantity: input.quantity,
       actualQuantity: null,
       productionLineId: line.id,
-      batchNumber: `BH-${year}-${String(seq).padStart(4, '0')}-A`,
+      batchNumber: `BH-${year}-${String(seq).padStart(4, '0')}`,
       rmAllocations,
       actualRmUsed: null,
       status: 'confirmed',
@@ -136,7 +139,6 @@ export const useProductionStore = create<ProductionState>((set, get) => ({
       endDate: new Date().toISOString(),
     }
 
-    const grade = gradeForYield(yieldRate)
     const batch: FinishedGoodsBatch = {
       id: `batch-${Date.now()}`,
       batchNumber: order.batchNumber,
@@ -145,10 +147,9 @@ export const useProductionStore = create<ProductionState>((set, get) => ({
       quantity: payload.actualQuantity,
       remainingQuantity: payload.actualQuantity,
       reservedForOrderId: order.customerOrderId,
-      gradeLevel: grade,
       yieldRate,
       expirationDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-      barcode: order.batchNumber.replace(/^BH-/, 'FG-').replace(/-[A-Z]$/, `-${grade}`),
+      barcode: order.batchNumber.replace(/^BH-/, 'FG-'),
       status: payload.actualQuantity === 0 ? 'depleted' : order.customerOrderId ? 'reserved' : 'available',
       createdAt: new Date().toISOString(),
     }

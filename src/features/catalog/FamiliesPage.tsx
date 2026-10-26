@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconEdit, IconPlus, IconPower, IconTrash } from '@/components/icons'
-import { Button, Card, CardHeader, DataTable, StatusPill, type DataTableColumn } from '@/components/ui'
+import { Button, Card, CardHeader, DataTable, FilterSelect, FilterSheet, ListToolbar, MultiSelectList, StatusPill, useFilterSheet, type CriteriaChip, type DataTableColumn } from '@/components/ui'
 import type { MaterialFamily } from '@/features/procurement/types'
+import { useListCriteria } from '@/hooks/useListCriteria'
+import { countBy, matchesText, sumCounts } from '@/lib/criteria'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { FamilyFormModal } from './FamilyFormModal'
 import { useCatalogStore } from './store'
 import { familyMembers, sumStock, categoryPath } from './utils'
+
+interface Criteria {
+  query: string
+  active: 'all' | 'active' | 'inactive'
+  categoryIds: string[]
+}
+
+const emptyCriteria: Criteria = { query: '', active: 'all', categoryIds: [] }
 
 export function FamiliesPage() {
   const families = useCatalogStore((s) => s.materialFamilies)
@@ -20,6 +30,30 @@ export function FamiliesPage() {
 
   const categoryName = (id: string) => categoryPath(categories, id)
   const membersOf = (id: string) => rawMaterials.filter((r) => r.familyId === id)
+
+  const { criteria, update, clear, page, setPage } = useListCriteria(emptyCriteria)
+  const sheet = useFilterSheet()
+
+  const needle = criteria.query.trim().toLowerCase()
+  /** `skip` leaves one criterion out so the filter UI can show how many results each of its values would give. */
+  const matches = (f: MaterialFamily, skip?: 'active' | 'category') => {
+    if (skip !== 'active' && criteria.active !== 'all' && f.isActive !== (criteria.active === 'active')) return false
+    if (skip !== 'category' && criteria.categoryIds.length && !criteria.categoryIds.includes(f.categoryId)) return false
+    return matchesText(needle, f.code, f.nameTh, f.nameEn, f.color, categoryName(f.categoryId))
+  }
+  const rows = families.filter((f) => matches(f))
+
+  const activeCounts = countBy(families.filter((f) => matches(f, 'active')), (f) => (f.isActive ? 'active' : 'inactive'))
+  const categoryCounts = countBy(families.filter((f) => matches(f, 'category')), (f) => f.categoryId)
+  const categoryIds = [...new Set(families.map((f) => f.categoryId))]
+
+  const chips: CriteriaChip[] = criteria.categoryIds.map((id) => ({
+    key: `c-${id}`,
+    label: 'หมวดหมู่',
+    value: categoryName(id),
+    onRemove: () => update({ categoryIds: criteria.categoryIds.filter((x) => x !== id) }),
+  }))
+  const hasAnyCriteria = chips.length > 0 || !!criteria.query || criteria.active !== 'all'
 
   const openForm = (family?: MaterialFamily) => {
     setEditing(family)
@@ -105,13 +139,43 @@ export function FamiliesPage() {
             </Button>
           }
         />
+        <ListToolbar
+          searchLabel="ค้นหาตระกูลวัตถุดิบ"
+          searchPlaceholder="ค้นหารหัส, ชื่อ, สี, หมวดหมู่"
+          query={criteria.query}
+          onQueryChange={(query) => update({ query })}
+          filters={
+            <FilterSelect
+              label="สถานะ"
+              value={criteria.active}
+              neutralValue="all"
+              onChange={(active) => update({ active })}
+              options={[
+                { value: 'all', label: 'ทั้งหมด', count: sumCounts(activeCounts) },
+                { value: 'active', label: 'ใช้งาน', tone: 'success', count: activeCounts.get('active') ?? 0 },
+                { value: 'inactive', label: 'ปิดใช้งาน', tone: 'neutral', count: activeCounts.get('inactive') ?? 0 },
+              ]}
+              className="w-full sm:w-64"
+            />
+          }
+          sheetCount={criteria.categoryIds.length}
+          onOpenSheet={sheet.openSheet}
+          chips={chips}
+          resultText={`พบ ${rows.length} จาก ${families.length} ตระกูล`}
+          hasCriteria={hasAnyCriteria}
+          onClear={clear}
+        />
+
         <DataTable
           columns={columns}
-          rows={families}
+          rows={rows}
           rowKey={(f) => f.id}
           pageSize={10}
-          emptyTitle="ยังไม่มีตระกูลวัตถุดิบ"
-          emptyDescription="เพิ่มตระกูลเพื่อรวม SKU ขนาดต่างๆ ของพันธุ์เดียวกัน"
+          page={page}
+          onPageChange={setPage}
+          paginationVariant="jump"
+          emptyTitle="ไม่พบตระกูลวัตถุดิบ"
+          emptyDescription={hasAnyCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : 'เพิ่มตระกูลเพื่อรวม SKU ขนาดต่างๆ ของพันธุ์เดียวกัน'}
           renderActions={(f) => (
             <>
               <Button size="sm" variant="soft" iconOnly outlined aria-label="แก้ไข" tooltip="แก้ไข" onClick={() => openForm(f)}>
@@ -135,6 +199,21 @@ export function FamiliesPage() {
           )}
         />
       </Card>
+
+      <FilterSheet
+        open={sheet.open}
+        onClose={sheet.closeSheet}
+        title="ตัวกรองตระกูลวัตถุดิบ"
+        resultCount={rows.length}
+        onClear={() => update({ categoryIds: [] })}
+      >
+        <MultiSelectList
+          label="หมวดหมู่"
+          options={categoryIds.map((id) => ({ value: id, label: categoryName(id), count: categoryCounts.get(id) ?? 0 }))}
+          value={criteria.categoryIds}
+          onChange={(ids) => update({ categoryIds: ids })}
+        />
+      </FilterSheet>
       <FamilyFormModal open={formOpen} onClose={() => setFormOpen(false)} family={editing} />
     </>
   )

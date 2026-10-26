@@ -13,6 +13,7 @@ import type {
   Invoice,
   InvoiceLine,
   InvoiceSource,
+  OrderChannel,
   SalesReport,
   SalesReportLine,
   ShopStock,
@@ -22,6 +23,16 @@ import { orderLineProgress } from './utils'
 
 export type ScanMode = 'counted' | 'spoiled' | 'delivered'
 type Result = { ok: true; message: string } | { ok: false; message: string }
+
+export interface CreateOrderInput {
+  customerId: string
+  channel: Exclude<OrderChannel, 'email'>
+  platformName: string
+  platformOrderRef: string
+  /** ISO date-time */
+  requestedDeliveryDate: string
+  lines: { finishedGoodId: string; quantity: number }[]
+}
 
 interface SalesState {
   customers: Customer[]
@@ -49,10 +60,15 @@ interface SalesState {
   deliverOrder: (orderId: string) => Result
   issueOrderInvoice: (orderId: string) => string | null
   saveImportProfile: (customerId: string, profile: ImportFormatProfile) => void
+  /** Phone / platform / hand-keyed order: staff already know what it says, so it is created confirmed. */
+  createOrder: (input: CreateOrderInput) => { ok: true; id: string } | { ok: false; message: string }
+  /** Marks (or clears) the open delivery sheet carrying these orders */
+  setOrdersSheet: (orderIds: string[], sheetId: string | null) => void
 
   // Scenario 2 — consignment
-  createVisit: (input: { customerId: string; visitDate: string; driverName: string }) => { ok: true; id: string } | { ok: false; message: string }
+  createVisit: (input: { customerId: string; visitDate: string; driverName: string; deliverySheetId?: string }) => { ok: true; id: string } | { ok: false; message: string }
   scanVisit: (visitId: string, mode: ScanMode, code: string, quantity: number) => Result
+  cancelVisit: (visitId: string) => void
   setVisitLineQty: (visitId: string, mode: ScanMode, batchNumber: string, quantity: number) => void
   signVisit: (visitId: string, signedBy: string) => Result
   addSalesReport: (input: { customerId: string; periodFrom: string; periodTo: string; lines: SalesReportLine[] }) => string
@@ -135,6 +151,10 @@ export const useSalesStore = create<SalesState>((set, get) => {
         importId: null,
         receivedAt: now,
         requestedDeliveryDate: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+        channel: 'email',
+        platformName: null,
+        platformOrderRef: null,
+        deliverySheetId: null,
         status: 'draft',
         lines,
         purchasePlanId: null,
@@ -169,6 +189,10 @@ export const useSalesStore = create<SalesState>((set, get) => {
         importId,
         receivedAt: imp.receivedAt,
         requestedDeliveryDate: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+        channel: 'email',
+        platformName: null,
+        platformOrderRef: null,
+        deliverySheetId: null,
         status: 'draft',
         lines: [{ id: `col-${Date.now()}`, customerSku: null, finishedGoodId: null, quantity: 0 }],
         purchasePlanId: null,
@@ -257,8 +281,48 @@ export const useSalesStore = create<SalesState>((set, get) => {
 
     saveImportProfile: (customerId, profile) => set({ customers: get().customers.map((c) => (c.id === customerId ? { ...c, importProfile: profile } : c)) }),
 
-    createVisit: ({ customerId, visitDate, driverName }) => {
-      if (get().visits.some((v) => v.customerId === customerId && v.status === 'draft')) {
+    createOrder: (input) => {
+      const customer = get().customers.find((c) => c.id === input.customerId)
+      if (!customer) return { ok: false, message: 'เลือกลูกค้า' }
+      const platformName = input.platformName.trim()
+      const platformOrderRef = input.platformOrderRef.trim()
+      if (input.channel === 'platform') {
+        if (!platformName || !platformOrderRef) return { ok: false, message: 'กรอกชื่อ platform และเลขคำสั่งซื้อของ platform' }
+        const dup = get().orders.find((o) => o.platformName?.toLowerCase() === platformName.toLowerCase() && o.platformOrderRef?.toLowerCase() === platformOrderRef.toLowerCase())
+        if (dup) return { ok: false, message: `เลขคำสั่งซื้อ ${platformOrderRef} จาก ${platformName} มีในระบบแล้ว (${dup.orderNumber})` }
+      }
+      if (input.lines.length === 0) return { ok: false, message: 'เพิ่มสินค้าอย่างน้อย 1 รายการ' }
+      if (input.lines.some((l) => !l.finishedGoodId || !(l.quantity > 0))) return { ok: false, message: 'ทุกรายการต้องเลือกสินค้าและจำนวนมากกว่า 0' }
+      if (new Set(input.lines.map((l) => l.finishedGoodId)).size !== input.lines.length) return { ok: false, message: 'มีสินค้าซ้ำกัน กรุณารวมเป็นรายการเดียว' }
+      const now = new Date().toISOString()
+      const order: CustomerOrder = {
+        id: `co-${Date.now()}`,
+        orderNumber: seq('ORD', 100 + get().orders.length),
+        customerId: customer.id,
+        importId: null,
+        receivedAt: now,
+        requestedDeliveryDate: input.requestedDeliveryDate,
+        channel: input.channel,
+        platformName: input.channel === 'platform' ? platformName : null,
+        platformOrderRef: input.channel === 'platform' ? platformOrderRef : null,
+        deliverySheetId: null,
+        status: 'confirmed',
+        lines: input.lines.map((l, i) => ({ id: `col-${Date.now()}-${i}`, customerSku: null, finishedGoodId: l.finishedGoodId, quantity: l.quantity })),
+        purchasePlanId: null,
+        confirmedAt: now,
+        deliveredAt: null,
+        deliveredLines: [],
+        invoiceId: null,
+      }
+      set({ orders: [order, ...get().orders] })
+      return { ok: true, id: order.id }
+    },
+
+    setOrdersSheet: (orderIds, sheetId) => set({ orders: get().orders.map((o) => (orderIds.includes(o.id) ? { ...o, deliverySheetId: sheetId } : o)) }),
+
+    createVisit: ({ customerId, visitDate, driverName, deliverySheetId }) => {
+      // A route sheet makes its visits up front, so one shop may sit on two sheets the same day
+      if (!deliverySheetId && get().visits.some((v) => v.customerId === customerId && v.status === 'draft')) {
         return { ok: false, message: 'ร้านนี้มีใบเข้าร้านที่ยังเป็นร่างอยู่ กรุณาทำให้เสร็จหรือให้ร้านลงชื่อก่อน' }
       }
       const previousBalance = get()
@@ -270,6 +334,7 @@ export const useSalesStore = create<SalesState>((set, get) => {
         customerId,
         visitDate,
         driverName,
+        deliverySheetId: deliverySheetId ?? null,
         status: 'draft',
         previousBalance,
         counted: [],
@@ -281,6 +346,8 @@ export const useSalesStore = create<SalesState>((set, get) => {
       set({ visits: [visit, ...get().visits] })
       return { ok: true, id: visit.id }
     },
+
+    cancelVisit: (visitId) => patchVisit(visitId, (v) => (v.status === 'draft' ? { ...v, status: 'cancelled' } : v)),
 
     scanVisit: (visitId, mode, rawCode, quantity) => {
       const visit = get().visits.find((v) => v.id === visitId)

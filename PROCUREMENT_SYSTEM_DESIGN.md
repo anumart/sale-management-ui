@@ -15,7 +15,15 @@
 2. [Business Context](#business-context)
    - [Supplier & Route Management](#supplier--route-management)
    - [Vehicle & Vehicle Route Management](#vehicle--vehicle-route-management)
+   - [Delivery Sheet (ใบส่งของ)](#delivery-sheet-ใบส่งของ)
+   - [Driver's Jobs Today (งานวันนี้)](#drivers-jobs-today-งานวันนี้)
+   - [Sales Types & Daily Fulfilment (ประเภทการขาย)](#sales-types--daily-fulfilment-ประเภทการขาย)
    - [Production Line & Capacity Management](#production-line--capacity-management-target-design)
+   - [System Settings (Configurable Thresholds)](#system-settings-configurable-thresholds)
+   - [Users, Roles & Authentication](#users-roles--authentication)
+   - [LINE Integration](#line-integration)
+   - [Notifications (In-app & LINE)](#notifications-in-app--line)
+   - [Audit Log](#audit-log)
 3. [User Flows](#user-flows)
    - [FLOW 1: Create Purchase Template](#flow-1-create-purchase-templatemaster)
    - [FLOW 2: Use Template to Create Purchase Orders](#flow-2-use-template-to-create-purchase-orders)
@@ -26,7 +34,7 @@
    - [FLOW 5: Approve & Create Production Orders](#flow-5-approve--create-production-orders-target-design)
    - [FLOW 6: Manufacturing Execution](#flow-6-manufacturing-execution-target-design)
    - [FLOW 7: Finished Goods Registration](#flow-7-finished-goods-registration-target-design)
-   - [FLOW 8: Sales & Distribution (Next Phase)](#flow-8-sales--distribution-next-phase)
+   - [FLOW 8: Sales & Distribution](#flow-8-sales--distribution)
 4. [Data Architecture](#data-architecture)
    - [Production, Inventory & Finished Goods Entities (Target Design)](#production-inventory--finished-goods-entities-target-design)
 5. [Frontend Architecture](#frontend-architecture)
@@ -68,12 +76,16 @@ Purchase Planning Template/Master system ช่วยให้พนักงา
 - ✅ Multi-supplier, multi-route ordering with tracking
 - ✅ Automatic purchase order generation (grouped by Supplier + Route)
 - ✅ Vehicle & vehicle route management (master data)
-- ✅ Vehicle run sheet generation & printing (daily pickup routes)
+- ✅ Vehicle run sheet generation & printing (pickup trips — several per vehicle/driver per day allowed)
+- ✅ Delivery sheets (route / direct) built as mock UI 2026-10-26 · ⏳ driver's jobs today (`/my-jobs`) — designed, not yet built
 - ✅ Inventory reservation & balance checking
 - ⏳ AI-based production planning (target design — FLOW 4-5, not yet implemented)
 - ⏳ Manufacturing execution & QC tracking (target design — FLOW 6, not yet implemented)
 - ⏳ Finished goods batch registration & traceability (target design — FLOW 7, not yet implemented)
-- ⏳ Sales & distribution (next phase — FLOW 8, not yet designed in detail)
+- ⏳ Sales & distribution — FLOW 8: consignment / fixed order / export designed 2026-10-26 (export details open), orders · visits · invoices partly built
+- ✅ System settings — admin-tunable warning thresholds with change history (`/admin/settings`; code currently at `/settings`)
+- ⏳ Users, roles (admin / staff / driver / production) & phone + password login — designed, not yet built
+- ⏳ LINE notifications via the company LINE OA — designed, not yet built
 
 ---
 
@@ -81,27 +93,25 @@ Purchase Planning Template/Master system ช่วยให้พนักงา
 
 ### Supplier & Route Management
 
-**Scenario**: Supplier (ร้านดอกไม้) 1 ร้าน มีหลายสวน/สถานที่
+**Scenario**: Supplier 1 ราย (บุคคลธรรมดาหรือนิติบุคคล) มีหลายสวน/สถานที่รับสินค้า แต่ขายแคตตาล็อกวัตถุดิบเดียวกันทุกสวน
 
 ```
 Supplier A (ร้านดอกไม้ใหญ่)
-├─ Route A: สวน Chiang Mai - Ms. Dao (053-xxx)
-│  └─ Apple: 1,000 Kg @ ฿18/kg
-│  └─ Grape: 500 Kg @ ฿25/kg
-│
-├─ Route B: สวน Nakhon Pathom - Mr. Som (034-xxx)
-│  └─ Apple: 800 Kg @ ฿20/kg
-│  └─ Banana: 600 Kg @ ฿15/kg
-│
-└─ Route C: สวน Prachuap - Mr. Niran (032-xxx)
-   └─ Orange: 2,000 Kg @ ฿16/kg
-   └─ Pineapple: 900 Kg @ ฿22/kg
+├─ Route A: สวน Chiang Mai - Ms. Dao (053-xxx)      ← จุดรับสินค้า
+├─ Route B: สวน Nakhon Pathom - Mr. Som (034-xxx)   ← จุดรับสินค้า
+└─ Route C: สวน Prachuap - Mr. Niran (032-xxx)      ← จุดรับสินค้า
+
+Supplier A raw materials (ใช้ร่วมกันทุก Route):
+├─ Apple   : ขายเป็น "กระสอบ" (1 กระสอบ = 20 Kg)  @ ฿360/กระสอบ
+├─ Grape   : ขายเป็น "กล่อง"  (1 กล่อง  = 5 Kg)   @ ฿125/กล่อง
+└─ Banana  : ขายเป็น "Kg"     (1 Kg     = 1 Kg)   @ ฿15/Kg
 ```
 
-**Key Changes**:
-1. **Supplier** = ร้านดอกไม้หลัก (บริษัท)
-2. **SupplierRoute** = สวน/สถานที่ส่งสินค้า (หลายแห่ง)
-3. **SupplierRouteRawMaterial** = สินค้าจากแต่ละสวน (ราคาอาจต่างกัน)
+**Key Points**:
+1. **Supplier** = ผู้ขาย แบ่งเป็น `individual` (บุคคลธรรมดา) / `company` (นิติบุคคล)
+2. **SupplierRoute** = สวน/สถานที่รับสินค้า (หลายแห่ง) มีที่อยู่แยกส่วน พิกัด แผนที่ และวิธีเดินทาง ใช้เป็น Stop ของ Vehicle Route
+3. **SupplierRawMaterial** = วัตถุดิบที่ Supplier ขาย ผูกกับ **Supplier** (ไม่ใช่ Route) ระบุ `supplierUnit` (หน่วยที่ขาย), `unitsPerSupplierUnit` (1 หน่วยขาย = กี่หน่วยฐาน) และ `pricePerSupplierUnit` (ราคาต่อ 1 หน่วยขาย)
+4. หน่วยฐาน (`RawMaterial.unit`) ใช้ใน BOM / สต็อก / การคำนวณความต้องการ ส่วนการสั่งซื้อและ PO ใช้ **หน่วยของ Supplier** (จำนวนที่ต้องการเป็นหน่วยฐาน ÷ `unitsPerSupplierUnit` = จำนวนที่สั่ง)
 
 ---
 
@@ -118,15 +128,16 @@ VehicleRoute A (เส้นทาง A - วิ่งทุกวันจั�
 VehicleRoute B (เส้นทาง B - วิ่งทุกวันจันทร์-ศุกร์)
 └─ Stop 1 (ลำดับที่ 1): Supplier C - Route C (Prachuap)
 
-Vehicle A (รถที่ 1): ทะเบียน กข-1234, คนขับ Mr. Somchai, 2,000 Kg
-Vehicle B (รถที่ 2): ทะเบียน กข-5678, คนขับ Mr. Niran, 1,500 Kg
+Vehicle A (รถที่ 1): ทะเบียน กข-1234, 2,000 Kg
+Vehicle B (รถที่ 2): ทะเบียน กข-5678, 1,500 Kg
 
-ใบวิ่งรถ 15-Jan: เส้นทาง A + Vehicle A
-ใบวิ่งรถ 16-Jan: เส้นทาง A + Vehicle B   (เปลี่ยนรถได้โดยไม่ต้องแก้เส้นทาง)
+ใบวิ่งรถ 15-Jan: เส้นทาง A + Vehicle A + คนขับ สมศักดิ์
+ใบวิ่งรถ 16-Jan: เส้นทาง A + Vehicle B + คนขับ นิรันดร์   (เปลี่ยนรถ/คนขับได้โดยไม่ต้องแก้เส้นทาง)
 ```
 
 **Key Points**:
-- 1 Vehicle = 1 ทะเบียน, 1 คนขับ, 1 ความจุ
+- 1 Vehicle = 1 ทะเบียน, 1 ความจุ — **ไม่ผูกคนขับ** คนขับ (User role `driver`) เลือกตอนออกใบวิ่งรถ (`VehicleRunSheet.driverUserId`) หรือใบส่งของ (`DeliverySheet.driverUserId`)
+- **รถ/คนขับคนเดียวกันมีหลายใบในวันเดียวได้** เช่น เช้าออกใบวิ่งรถไปรับวัตถุดิบ บ่ายออกใบส่งของ — ไม่มีกฎ 1 ใบต่อรถต่อวัน
 - VehicleRoute ไม่มี vehicleId: รถอย่างไรก็ได้วิ่งเส้นทางไหนก็ได้ และรถ 1 คันวิ่งได้หลายเส้นทาง รถที่วิ่งบันทึกที่ใบวิ่งรถ (`VehicleRunSheet.vehicleId`) ตอนออกใบ
 - 1 VehicleRoute = ลำดับจุดรับสินค้าที่ชัดเจน (Stop 1 → Stop 2 → Stop 3)
 - แต่ละ Stop เป็น SupplierRoute ที่มีอยู่แล้ว (สวนของ Supplier ไหน)
@@ -139,6 +150,128 @@ Vehicle B (รถที่ 2): ทะเบียน กข-5678, คนขั�
 - 1 Stop ใน Run Sheet อาจประกอบด้วย 0, 1, หรือหลาย POs ที่ pickup จากที่แห่งนั้น
 
 ---
+
+### Delivery Sheet (ใบส่งของ)
+
+> Mock UI built 2026-10-26 (see "สถานะการสร้าง" under [Sales Types](#sales-types--daily-fulfilment-ประเภทการขาย)). Entity: [14.2 DeliverySheet](#142-deliverysheet-new---delivery-trip-document).
+
+**Scenario**: รถคันเดียวกันและคนขับคนเดียวกัน ช่วงเช้าวิ่งไปรับวัตถุดิบ (ใบวิ่งรถ) ช่วงบ่ายไปส่งของให้ลูกค้าและเข้าร้านฝากขาย (ใบส่งของ) — ทั้งสองใบเลือกรถและคนขับตอนออกใบ
+
+**DeliverySheet** = ใบส่งของ (ขาส่ง) — เอกสาร 1 เที่ยวส่งของ: เลือก **รถ + คนขับ + วันที่** แล้วเลือกจุดส่งเรียงตามลำดับ คู่กับใบวิ่งรถ (ขารับ) แต่ไม่ใช้เส้นทางรถ — แบบสายฝากขายใช้**สายฝากขาย**แทน
+- **ใบส่งของ 2 แบบ (`sheetType`) ไม่ปนกันในใบเดียว** (updated 2026-10-26 — ส่งตรงไม่รวมกับสายฝากขาย)
+  - `consignment_route` (สายฝากขาย) — เลือก **สาย** ระบบดึงร้านในสายเป็นจุดส่ง (`consignment_visit`) ตามลำดับ และสร้าง **ใบเข้าร้าน** (`ConsignmentVisit`) ให้ทุกจุด คนขับของใบเข้าร้าน = คนขับของใบส่งของ · ตอน Draft ตัด/เพิ่ม/เรียงร้านได้ · ของขึ้นรถตั้งต้นจากยอดประเมินลงร้านของสายนั้น
+  - `direct` (ส่งตรง) — เลือก **คำสั่งซื้อ** (`customer_order`) `confirmed` ที่ยังไม่ส่งและยังไม่อยู่ในใบส่งของใบอื่นที่ยังเปิดอยู่ — ลูกค้าในประเทศ หรือส่งออก (ปลายทางสนามบิน)
+- **ลำดับจุดส่ง** staff จัดเอง (ลากเรียง) ใบที่พิมพ์และหน้างานวันนี้ของคนขับเรียงตามลำดับนี้
+- **ของขึ้นรถและของคืน (สายฝากขาย)** — ตอนพิมพ์ใบบันทึกของขึ้นรถต่อสินค้า (สแกน LOT) · คนขับลงของแต่ละร้านตามหน้างานได้ ไม่ต้องตรงยอดประเมิน · จบเที่ยว staff บันทึกของคืน (สแกน LOT) ของคืนกลับเข้าสต็อก · ระบบแสดงส่วนต่าง ขึ้นรถ − ลงร้าน − คืน (เตือน ไม่บล็อก)
+- **ขารับกับขาส่งเป็นคนละใบ** — ขารับใช้ใบวิ่งรถ ขาส่งใช้ใบส่งของ · งานจริงรับของและส่งของคนละช่วงเวลา ไม่มีเที่ยวที่ปนกัน จึงไม่มีใบแบบผสม
+- **รถ/คนขับคนเดียวกันมีหลายใบในวันเดียวได้** ทั้งใบวิ่งรถและใบส่งของ (เช่น เช้ารับวัตถุดิบ บ่ายส่งของ) ไม่ล็อก — ตอนออกใบระบบบอกว่ารถคันนี้/คนขับคนนี้มีใบอื่นในวันเดียวกันกี่ใบ (ข้อมูลประกอบ ไม่บล็อก)
+- **ไม่ระบุเวลาออกรถ** ลำดับเที่ยวของวันดูจากเวลาที่พิมพ์ใบ (`printedAt`)
+- `driver` ไม่เห็นราคา/ยอดเงินในใบส่งของ
+
+**สถานะ**
+```
+Draft → Printed → Completed
+  └────────┴──→ Cancelled
+```
+- **Draft** — เพิ่ม/ลบ/เรียงจุดส่ง เปลี่ยนรถ/คนขับได้
+- **Printed** — พิมพ์แล้ว คนขับออกส่ง แจ้งเตือน `deliverysheet.ready` ถึงคนขับ · เปลี่ยนคนขับได้ (คนใหม่ได้รับแจ้ง คนขับของใบเข้าร้านในใบเปลี่ยนตาม) แต่เพิ่ม/ลบจุดส่งไม่ได้
+- **ผลของแต่ละจุด** (`pending` → `done` / `failed`)
+  - จุดคำสั่งซื้อ: staff บันทึกส่งของในคำสั่งซื้อ (เหมือนเดิม) → `done` · ❓ ค้างไว้: จะให้คนขับกด "ส่งแล้ว" เองจากหน้างานวันนี้ (พร้อมหลักฐาน เช่น รูป/ลายเซ็นผู้รับ) หรือไม่
+  - จุดร้านฝากขาย: ร้านเซ็นใบเข้าร้าน → `done`
+  - ส่งไม่ได้: staff กด "ส่งไม่ได้" พร้อมเหตุผล → `failed` · คำสั่งซื้อกลับไปรอส่ง ใส่ใบส่งของใบอื่นได้ · ใบเข้าร้านที่ยังไม่เซ็นถูกยกเลิก
+- **Completed** — อัตโนมัติเมื่อทุกจุดเป็น `done` หรือ `failed` (แบบสายฝากขายต้องบันทึกของคืนแล้วด้วย)
+- **Cancelled** — ยกเลิกได้เมื่อยังไม่มีจุดไหน `done` · คืนคำสั่งซื้อเป็นรอส่ง และยกเลิกใบเข้าร้านที่ยังไม่เซ็น
+
+**ตัวอย่าง** (วันเดียวกัน — รถ VH-001 คนขับ สมชาย วิ่ง 2 เที่ยว)
+```
+RS-20260115-001 ใบวิ่งรถ (เช้า) · รถ VH-001 · คนขับ สมชาย · เส้นทาง A
+├─ 1. สวน A เชียงใหม่ — PO-…: กุหลาบแดง 500 ก้าน
+└─ 2. สวน B นครปฐม  — PO-…: ยิปโซ 30 กำ
+
+DS-20260115-002 ใบส่งของ สายฝากขาย (บ่าย) · สาย CR-01 สุขุมวิท · รถ VH-001 · คนขับ สมชาย
+├─ ขึ้นรถ: ช่อกุหลาบแดง 60 ช่อ, ช่อมะลิ 20 ช่อ (จากยอดประเมิน CE-20260115-001)
+├─ 1. Tops ลาดพร้าว  — ใบเข้าร้าน CV-…
+├─ 2. Central World — ใบเข้าร้าน CV-…
+└─ 3. Big C พระราม 4 — ใบเข้าร้าน CV-…
+
+DS-20260115-003 ใบส่งของ ส่งตรง · รถ VH-002 · คนขับ สมศักดิ์
+├─ 1. ร้านดอกไม้ป้าแดง          — SO-2026-0123: ช่อกุหลาบแดง 20 ช่อ
+└─ 2. สนามบินสุวรรณภูมิ (ส่งออก) — SO-2026-0124: Hana Flowers (JP)
+```
+
+### Driver's Jobs Today (งานวันนี้)
+
+> Designed 2026-10-26, not yet built.
+
+หน้าแรกของ `driver` หลัง login (`/my-jobs`) ออกแบบสำหรับมือถือ
+- แสดง **ใบวิ่งรถ + ใบส่งของ** ที่ตัวเองเป็นคนขับของวันนี้ สถานะ `Printed` เรียงตามเวลาพิมพ์ (= เที่ยวที่ 1, 2, …) · ใบที่จบแล้ว (`Completed`) อยู่ท้ายแบบจาง · ไม่แสดง `Draft` / `Cancelled`
+- **ใบวิ่งรถ**: จุดรับตามลำดับ ที่อยู่ ผู้ติดต่อ (กดโทรได้) วัตถุดิบ + จำนวน — ดูอย่างเดียว (คนขับไม่บันทึกรับของ)
+- **ใบส่งของ**: จุดส่งตามลำดับ ที่อยู่ ผู้ติดต่อ สินค้า + จำนวน และสถานะแต่ละจุด · จุดร้านฝากขายกดเปิดใบเข้าร้านเพื่อสแกนของที่เหลือและให้ร้านเซ็น
+- เลือกดูวันอื่นได้ (ย้อนหลัง/ล่วงหน้า) อ่านอย่างเดียว · ไม่แสดงราคา/ยอดเงิน
+- sidebar ของ `driver` มีแค่เมนู **งานวันนี้** — รายละเอียดใบเปิดผ่านลิงก์ในหน้านี้หรือจากแจ้งเตือน
+
+---
+
+### Sales Types & Daily Fulfilment (ประเภทการขาย)
+
+> Mock UI built 2026-10-26. Flow: [FLOW 8](#flow-8-sales--distribution) · Entities: [14.3](#143-consignmentroute--consignmentestimate-new---sales). ส่วนส่งออกยังมีคำถามค้าง (❓)
+
+**ขาย 3 แบบ**
+
+| | ฝากขาย | ขายขาด (fixed order) | ส่งออก (fixed order ต่างประเทศ) |
+|---|---|---|---|
+| รับยอด | staff ประเมินยอดลงร้านรายสาย — **ไม่ใช่คำสั่งซื้อ** | อีเมล/ไฟล์ (คัดกรองแล้ว) หรือโทรสั่ง | คีย์เองจาก platform ซื้อขายดอกไม้/ต้นไม้ |
+| เอกสารที่สร้าง | ยอดประเมินลงร้าน (`ConsignmentEstimate`) | คำสั่งซื้อ (`CustomerOrder`) | คำสั่งซื้อ (`CustomerOrder`) |
+| ยอดจริง | ของที่สแกนลงร้าน (ใบเข้าร้าน) · ยอดขายจากร้าน | ตามคำสั่งซื้อ | ตามคำสั่งซื้อ |
+| สั่งวัตถุดิบ | ประเมินจากยอดขายย้อนหลัง (ร่วมกับขายขาด) | ประเมินจากยอดขายย้อนหลัง | ยอดแน่นอนจากคำสั่งซื้อ สั่งก่อนวันส่ง |
+| ใบสั่งผลิต | 1 ใบต่อ สาย × วันส่ง × สินค้า | 1 ใบต่อ คำสั่งซื้อ × สินค้า | 1 ใบต่อ คำสั่งซื้อ × สินค้า |
+| จัดส่ง | ใบส่งของแบบสายฝากขาย | ใบส่งของแบบส่งตรง | ใบส่งของแบบส่งตรง ปลายทางสนามบิน |
+| เก็บเงิน | ใบแจ้งหนี้จากยอดขายจากร้าน (GP — ❓ ค้าง) | ใบแจ้งหนี้ตามที่ส่ง | commercial invoice + packing list ภาษาอังกฤษ (ระบบออก) — ❓ สกุลเงิน/ช่องทางรับเงิน |
+
+**สายฝากขาย (`ConsignmentRoute`)** — ข้อมูลหลักของฝ่ายขาย แยกจากเส้นทางรถ (ขารับวัตถุดิบ)
+- `code`, `name`, ร้านเรียงตามลำดับ (`ConsignmentRouteStop`), `daysOfWeek` **วันที่วิ่ง** (บังคับ เลือกอย่างน้อย 1 วัน — วิ่งทุกวันให้เลือกครบ 7 วัน), `isActive`
+- ร้าน 1 ร้านอยู่ได้หลายสาย และ**อาจโดน 2 สายในวันเดียวกันได้** · ร้านเดิมซ้ำในสายเดียวกันไม่ได้
+- ไม่ผูกรถหรือคนขับ — เลือกตอนออกใบส่งของ
+
+**ยอดประเมินลงร้าน (`ConsignmentEstimate`)** — 1 ใบต่อ สาย × วันส่ง (`CE-YYYYMMDD-###`)
+- รายการ = ร้านในสาย × สินค้า × จำนวนประเมิน · ระบบแนะนำตัวเลข (ยอดขายล่าสุดของร้าน, ของที่ยังเหลือในร้าน, ของเสียรอบก่อน) staff แก้ได้เสมอ
+- **ไม่ใช่คำสั่งซื้อและไม่ใช่ยอดขาย** — ใช้วางแผนผลิตและเตรียมของขึ้นรถเท่านั้น
+- ร้านที่อยู่ในยอดประเมินของสายอื่นในวันเดียวกัน ระบบเตือน (ไม่บล็อก) กันประเมินซ้ำโดยไม่ตั้งใจ
+- สถานะ `draft` → `confirmed` (นับเข้าแผนผลิต) · `cancelled` · แก้ได้จนกว่าใบส่งของของสายนั้นจะพิมพ์ — แก้หลังสั่งผลิตแล้ว ระบบแสดงส่วนต่างกับใบสั่งผลิต ไม่แก้ใบสั่งผลิตให้อัตโนมัติ
+- เก็บไว้เทียบกับยอดที่ลงร้านจริง (ใบเข้าร้าน) เพื่อปรับยอดแนะนำรอบต่อไป
+
+**คำสั่งซื้อ (ขายขาด + ส่งออก)** — เพิ่มจากของเดิม
+- `channel`: `email` (นำเข้าจากอีเมล/ไฟล์ เป็นร่างจนคัดกรองแล้วยืนยัน) · `phone` · `platform` · `manual`
+- `platformName?` + `platformOrderRef?` — คู่นี้ซ้ำไม่ได้ (กันคีย์ซ้ำ)
+- ลูกค้าส่งออก = **ผู้ซื้อต่างประเทศแต่ละราย** เก็บเป็นลูกค้า (มีสั่งซ้ำ) เพิ่ม `country`, `nameEn`, `addressEn`, `currency?` ❓ · platform เป็นแค่ช่องทาง ไม่ใช่ลูกค้า
+- ปลายทางส่งของ: ในประเทศ = ที่อยู่ลูกค้า · ส่งออก = **สนามบิน** (รถเราไปส่ง)
+- ❓ ค้าง (ส่งออก): สกุลเงินและช่องทางรับเงิน · สินค้า/การแพ็กแยกจากในประเทศไหม · ใบรับรองสุขอนามัยพืช (phytosanitary) · packing list ละเอียดระดับกล่องไหม · เก็บ AWB/เที่ยวบินไหม · เที่ยวเดียวขนหลายคำสั่งซื้อได้ไหม
+
+**สั่งผลิต**
+- ปกติสั่งผลิตบ่าย ส่งเช้าวันถัดไป แต่**สั่งได้ทุกเวลา** ไม่มีตัดรอบ — คำสั่งซื้อ (อีเมล/โทร) ที่มาทีหลัง สั่งผลิตเพิ่มได้
+- หน้าวางแผนผลิตเลือก **วันส่ง** แล้วแสดงความต้องการทั้งหมดของวันนั้น: ยอดประเมินแต่ละสาย (`confirmed`) + คำสั่งซื้อ `confirmed` ที่ส่งวันนั้น พร้อมสถานะว่าสั่งผลิตแล้วหรือยัง
+- ใบสั่งผลิต (1 ใบ = 1 สินค้า = 1 LOT เหมือนเดิม)
+  - ฝากขาย: 1 ใบต่อ สาย × วันส่ง × สินค้า · ยอดตั้งต้น = ผลรวมยอดประเมินของร้านในสาย แก้ได้ (เช่น ใช้สต็อกที่มีอยู่) · `source = consignment_route`
+  - ขายขาด/ส่งออก: 1 ใบต่อ คำสั่งซื้อ × สินค้า · `source = customer_order`
+  - ผลิตเข้าสต็อก: `source = manual`
+- LOT ที่ผลิตเสร็จถูกกันไว้ให้สายหรือคำสั่งซื้อนั้น
+
+**สั่งวัตถุดิบ**
+- ฝากขาย + ขายขาดในประเทศ: ประเมินจากยอดขายย้อนหลัง (แผนจัดซื้อเดิม) — คำสั่งซื้ออีเมลมาเช้า ผลิตบ่าย สั่งวัตถุดิบไม่ทัน จึงใช้สต็อกที่ซื้อไว้จากยอดประเมิน
+- ส่งออก: คำสั่งซื้อรู้ล่วงหน้า เพิ่มเข้าแผนจัดซื้อเป็น**ยอดแน่นอน** · ยอดประเมินจากประวัติไม่นับช่องทาง `platform` เพื่อไม่ให้นับซ้ำ
+
+**จัดส่ง** — ใบส่งของ 2 แบบ ไม่ปนกัน (ดู [Delivery Sheet](#delivery-sheet-ใบส่งของ))
+- **สายฝากขาย**: เลือกสาย ระบบดึงร้านตามลำดับ + ยอดขึ้นรถจากยอดประเมิน · คนขับลงของแต่ละร้านตามหน้างานได้ ไม่ต้องตรงยอดประเมิน · ของที่เหลือกลับเข้าสต็อก
+- **ส่งตรง**: เลือกคำสั่งซื้อ (ลูกค้าในประเทศ หรือส่งออกไปสนามบิน)
+
+**สถานะการสร้าง (mock UI, 2026-10-26)** — ที่ทำจริงต่างจากที่ออกแบบเล็กน้อย
+- ✅ สายฝากขาย (เพิ่ม/แก้/เปิด-ปิด, เรียงร้าน, วันที่วิ่งบังคับ) · ยอดประเมินลงร้าน (ตารางร้าน × สินค้า, ยอดแนะนำ, ยืนยัน/ยกเลิก, ล็อกเมื่อใบส่งของพิมพ์แล้ว, เตือนร้านซ้ำสาย) · ใบส่งของทั้ง 2 แบบ (ร่าง → พิมพ์แล้ว → เสร็จสิ้น/ยกเลิก, ส่งไม่ได้, ของขึ้นรถ/ของคืน) · ความต้องการตามวันส่งในหน้าวางแผนผลิต · ช่องทางคำสั่งซื้อ + คีย์คำสั่งซื้อ + ผู้ซื้อต่างประเทศ
+- **คำสั่งซื้อที่คีย์เอง** (โทร / platform / คีย์เอง) สร้างเป็น `confirmed` ทันที เพราะพนักงานรู้เนื้อหาแล้ว ไม่มีขั้นคัดกรองแบบอีเมล
+- **สถานะใบส่งของ**: เก็บแค่ `draft` / `printed` / `cancelled` — `completed` และสถานะรายจุด (`pending` / `done` / `failed`) คำนวณจากคำสั่งซื้อที่ส่งแล้วและใบเข้าร้านที่เซ็นแล้ว (จุดที่ส่งไม่ได้เก็บ `failReason`)
+- **ใบเข้าร้าน**: สถานะเพิ่ม `cancelled` · ใบที่สร้างจากใบส่งของข้ามกฎ "ร้านมีใบเข้าร้านร่างอยู่แล้ว" เพราะร้านเดียวอยู่ 2 สายในวันเดียวกันได้
+- ⚠️ **ของคืน** บันทึกเป็นจำนวนต่อสินค้า ยังไม่สแกน LOT และยังไม่ปรับยอด LOT ในคลัง · LOT ของสายฝากขายไม่ได้จองให้สายโดยเฉพาะ
+- ⚠️ **คนขับ** เลือกจากรายชื่อคนขับของรถ (ยังไม่มีระบบผู้ใช้) · ⚠️ สิทธิ์ตาม role และ `/my-jobs` ยังไม่ได้ทำ
+- ⏳ ยังไม่ทำ: เอกสารส่งออก (commercial invoice / packing list) · แผนจัดซื้อรวมยอดส่งออกเป็นยอดแน่นอนและไม่นับยอด platform ซ้ำ (ตอนนี้คำสั่งซื้อ `confirmed` ทุกช่องทางเข้าแผนตามตรรกะเดิม) · สต็อกวัตถุดิบเป็นแท็บแยก
 
 ### Production Line & Capacity Management (Target Design)
 
@@ -157,7 +290,7 @@ PRODUCTION PLANNING & MANUFACTURING (FLOW 4-7, target design)
     ↓
     Finished Goods Inventory
     ↓
-SALES & DISTRIBUTION (FLOW 8, next phase — not designed in detail yet)
+SALES & DISTRIBUTION (FLOW 8 — ฝากขาย / ขายขาด / ส่งออก)
     ↓
     Customer Delivery
 ```
@@ -176,6 +309,254 @@ SALES & DISTRIBUTION (FLOW 8, next phase — not designed in detail yet)
 จาก FLOW 3b) ก่อน จึงจะวางแผนผลิตได้ เพราะจำนวนที่ได้รับจริงอาจต่างจากที่สั่ง
 (variance อาจ >10%)
 ```
+
+### System Settings (Configurable Thresholds)
+
+ค่ากฎธุรกิจที่เคยเขียนตายตัวในโค้ด ย้ายมาให้ผู้ดูแลระบบตั้งได้ที่หน้า **ตั้งค่าระบบ** (`/admin/settings`, แท็บในเมนูผู้ดูแลระบบ — โค้ดตอนนี้ยังอยู่ที่ `/settings` เปิดจากปุ่มเฟืองกลุ่มล่างของ sidebar)
+
+| Key | กลุ่ม | ใช้ที่ | ค่าเริ่มต้น | ช่วงที่ตั้งได้ |
+|-----|------|-------|-----------|--------------|
+| `wasteWarnPercent` | ขาย | หน้าสรุปผลฝากขาย: อัตราของเสีย (ของเสีย ÷ ของที่ส่งเข้าร้าน) ตั้งแต่ค่านี้เป็นสีส้ม | 10 % | 0–100 |
+| `wasteDangerPercent` | ขาย | ตั้งแต่ค่านี้เป็นสีแดง | 15 % | 0–100, ต้อง > `wasteWarnPercent` |
+| `wasteMinDelivered` | ขาย | สาขาที่ส่งน้อยกว่านี้ไม่ติดอันดับ "สาขาที่ของเสียสูง" | 100 ชิ้น | 0–100,000 |
+| `receiptVariancePercent` | จัดซื้อ | รับของต่างจากที่สั่ง (± %) เกินค่านี้ขึ้นการ์ดความเสี่ยงที่แดชบอร์ด | 10 % | 0–100 |
+| `expiryWarningDays` | คลังสินค้า | LOT สินค้าสำเร็จรูปที่ยังมีของและจะหมดอายุภายในกี่วัน ขึ้นการ์ดความเสี่ยง | 7 วัน | 0–60 |
+| `lowYieldPercent` | ผลิต | ใบสั่งผลิตที่ปิดแล้วมีอัตราผลผลิตต่ำกว่าค่านี้ ขึ้นการ์ดความเสี่ยง | 95 % | 0–100 |
+
+**หลักการ**
+- **ใช้เตือนเท่านั้น ไม่บล็อกการทำงาน** — ทุกค่าใช้กำหนดสีแถว อันดับ หรือรายการในการ์ดความเสี่ยง ผู้ใช้ยังส่งของ ใช้ LOT หรือรับของได้ตามปกติ (หน้างานจริงยืดหยุ่น ระบบที่บล็อกมากเกินไปผู้ใช้ไม่ชอบ)
+- **รายงานคิดใหม่ตามค่าปัจจุบันเสมอ** — รวมช่วงย้อนหลัง ไม่มีค่าที่มีวันที่เริ่มใช้ (effective date)
+- **ประวัติการแก้ค่าเก็บไว้ตรวจสอบเท่านั้น** — ใคร แก้ค่าไหน จากเท่าไรเป็นเท่าไร เมื่อไร ไม่มี logic ใดอ่านประวัติไปคำนวณ · เก็บใน Audit Log (`entityType = SystemSetting`)
+- **ผู้ดูแลระบบแก้ได้คนเดียว** (role `admin`, ดู [Users, Roles & Authentication](#users-roles--authentication)) — โค้ดปัจจุบันยังใช้ flag `isAdmin` ชั่วคราวจนกว่าระบบ login จะสร้างเสร็จ ผู้ใช้ที่ไม่ใช่ admin ไม่เห็นเมนู และเข้า `/admin/settings` ตรง ๆ จะเจอข้อความไม่มีสิทธิ์
+- ค่าเป็นชุดเดียวทั้งระบบ (ยังไม่มีตั้งทับรายหมวดหรือรายสินค้า)
+- Implementation ปัจจุบัน: `src/features/settings/` (`definitions.ts` = รายการค่าและกฎตรวจ, `store.ts` = ค่าปัจจุบัน + ประวัติ เก็บใน localStorage จนกว่าจะมี backend)
+
+**Data**: see [20. SystemSetting](#20-systemsetting); change history in [22. AuditLog](#22-auditlog). **Not configurable yet (still hard-coded)**: receipt line tint on the run sheet / receipt pages (any shortfall amber, more than 20 % short red) and LOT shelf life on registration (7 days).
+
+### Users, Roles & Authentication
+
+> **Designed 2026-10-25, not yet built** — the app still uses a mock signed-in user with a temporary `isAdmin` flag.
+
+**Roles**
+
+| Role | ใคร | ขอบเขต |
+|------|-----|--------|
+| `admin` | ผู้ดูแลระบบ | ทำได้ทุกอย่าง รวมถึงจัดการผู้ใช้และตั้งค่าระบบ |
+| `staff` | พนักงานทั่วไป | ทำได้ทุกอย่าง **ยกเว้น** จัดการผู้ใช้และตั้งค่าระบบ |
+| `driver` | คนขับรถ | ดูใบวิ่งรถที่ตัวเองถูกมอบหมาย, ทำงานเข้าร้านฝากขายที่ตัวเองถูกมอบหมาย |
+| `production` | พนักงานผลิต | ทำงานตามใบสั่งผลิต (เริ่มผลิต / บันทึกผล / ปิดงาน), ดูแผนผลิต สต็อก สูตร |
+
+ผู้ใช้ 1 คนมีได้ 1 role
+
+**ข้อมูลผู้ใช้** — เก็บเท่าที่จำเป็น
+
+| ฟิลด์ | บังคับ | หมายเหตุ |
+|------|-------|---------|
+| `firstName`, `lastName` | ✔ | ชื่อ, นามสกุล |
+| `phone` | ✔ | ใช้ login ห้ามซ้ำ (รวมบัญชีที่ปิดแล้ว) เก็บรูปแบบเดียว `0XXXXXXXXX` (10 หลัก) — ตอนกรอกพิมพ์ขีด/เว้นวรรค/ขึ้นต้น `+66` ได้ ระบบแปลงให้ |
+| `email` | — | ไม่บังคับ ไม่ใช้ login |
+| `role` | ✔ | `admin` / `staff` / `driver` / `production` |
+| `lineUserId`, `lineDisplayName`, `linePictureUrl`, `lineLinkedAt`, `lineStatus` | — | ข้อมูลการเชื่อม LINE (ดูหัวข้อ LINE) |
+
+ฟิลด์ที่ระบบจัดการเอง (ผู้ใช้ไม่กรอก): `passwordHash` (ไม่เก็บรหัสผ่านตรง ๆ), `isActive`, `mustChangePassword`, `failedLoginCount`, `lockedUntil`, `lastLoginAt`, `createdAt`
+
+**การเข้าสู่ระบบ**
+- **Login ด้วยเบอร์โทร + รหัสผ่าน** ผิดแล้วตอบรวม ๆ ว่า "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง" ไม่บอกว่าผิดช่องไหน
+- **ล็อกบัญชี** เมื่อรหัสผิด 5 ครั้งติดกัน นาน 15 นาที (admin ปลดล็อกก่อนได้) login สำเร็จแล้วรีเซ็ตตัวนับ
+- **รหัสผ่าน** อย่างน้อย 8 ตัวอักษร
+- **ลืมรหัสผ่าน** ไม่มี OTP/อีเมลในรอบแรก — แจ้ง admin ให้รีเซ็ต ระบบออกรหัสชั่วคราว และบังคับเปลี่ยนตอน login ครั้งถัดไป (`mustChangePassword`) เช่นเดียวกับบัญชีที่ admin เพิ่งสร้าง
+- **อายุ session** `driver` / `production` 30 วัน (ใช้มือถือ/แท็บเล็ตหน้างาน) · `admin` / `staff` 12 ชั่วโมง
+- **ปิดบัญชี, เปลี่ยน role, รีเซ็ตรหัส** มีผลทันที — session เดิมของผู้ใช้คนนั้นถูกยกเลิกทั้งหมด
+- **ไม่มีการลบผู้ใช้** ใช้ปิดบัญชี (`isActive = false`) เพราะชื่ออยู่ในเอกสารย้อนหลัง
+- **admin คนแรก** สร้างตอนติดตั้งระบบ (seed)
+
+**สิทธิ์ตามเมนู**
+
+✏️ = แก้ไขได้ · 👁 = ดูอย่างเดียว · — = ไม่เห็นเมนูและเรียก API ไม่ได้
+
+| เมนู / หน้า | admin | staff | driver | production |
+|---|---|---|---|---|
+| แดชบอร์ด | ✏️ | ✏️ | — | — |
+| จัดซื้อ: แผนจัดซื้อ, ใบสั่งซื้อ, ซัพพลายเออร์ | ✏️ | ✏️ | — | — |
+| ขนส่ง: ใบวิ่งรถ (รวมบันทึกรับของ) | ✏️ | ✏️ | 👁 เฉพาะใบที่ตัวเองเป็นคนขับ | — |
+| ขนส่ง: รถ, เส้นทางรถ | ✏️ | ✏️ | — | — |
+| ผลิต: วางแผนผลิต | ✏️ | ✏️ | — | 👁 |
+| ผลิต: ใบสั่งผลิต | ✏️ | ✏️ | — | ✏️ เริ่มผลิต / บันทึกผล / ปิดงาน — **สร้างใหม่ไม่ได้** |
+| ผลิต: สินค้าสำเร็จรูป | ✏️ | ✏️ | — | 👁 |
+| ผลิต: ไลน์ผลิต | ✏️ | ✏️ | — | ✏️ เฉพาะเปิด/ปิดซ่อม |
+| ขาย: เข้าร้าน | ✏️ | ✏️ (สร้างและมอบหมายคนขับ) | ✏️ เฉพาะงานที่ถูกมอบหมาย (สแกน, ให้ร้านเซ็น) | — |
+| ขาย: คำสั่งซื้อ, ยอดขายจากร้าน, ใบแจ้งหนี้, สรุปผลฝากขาย, ลูกค้า | ✏️ | ✏️ | — | — |
+| ข้อมูลหลัก: สินค้า, สูตร, วัตถุดิบ | ✏️ | ✏️ | — | 👁 |
+| จัดการผู้ใช้ | ✏️ | — | — | — |
+| ตั้งค่าระบบ (รวม LINE OA) | ✏️ | — | — | — |
+| โปรไฟล์ตัวเอง (เปลี่ยนรหัส, เชื่อม LINE) | ✏️ | ✏️ | ✏️ | ✏️ |
+
+- **ตรวจสิทธิ์ที่ backend ทุก API** ไม่ใช่แค่ซ่อนเมนู · เข้า URL ตรงแล้วไม่มีสิทธิ์ → หน้า "ไม่มีสิทธิ์เข้าหน้านี้"
+- **หน้าแรกหลัง login** `admin` / `staff` → แดชบอร์ด · `driver` → ใบวิ่งรถของตัวเอง · `production` → ใบสั่งผลิต
+- **`driver` ไม่เห็นราคาและยอดเงิน** ในหน้าที่เปิดให้ (ใบวิ่งรถแสดงจุดรับ สินค้า จำนวน แต่ไม่แสดงราคา/ยอดรวม)
+- **คนขับไม่ได้ผูกกับรถ** — เลือกคนขับพร้อมรถทุกครั้งที่ออกใบ: ใบวิ่งรถ (`VehicleRunSheet.driverUserId`) และใบส่งของ (`DeliverySheet.driverUserId`) · ใบเข้าร้านรับคนขับจากใบส่งของ (`ConsignmentVisit.driverUserId`) · คนขับ/รถคนเดียวกันมีหลายใบในวันเดียวได้
+- **คนขับไม่บันทึกรับของเอง** — พนักงานบันทึกจากใบวิ่งรถกระดาษหลังคนขับกลับมา (FLOW 3b เดิม)
+
+**หน้าจัดการผู้ใช้** (`/admin/users`, admin เท่านั้น)
+- รายการผู้ใช้: ชื่อ-นามสกุล, เบอร์โทร, role, สถานะ (ใช้งาน / ปิด / ล็อก), LINE (เชื่อมแล้ว / ยังไม่เชื่อม / บล็อก OA), login ล่าสุด · ค้นหาชื่อ/เบอร์ · กรองตาม role และสถานะ
+- เพิ่ม / แก้ไขผู้ใช้: ชื่อ, นามสกุล, เบอร์โทร, email, role — ตอนสร้างระบบออก **รหัสชั่วคราว** แสดงครั้งเดียวให้ admin ส่งต่อ
+- ปุ่มต่อแถว: แก้ไข, รีเซ็ตรหัส (ได้รหัสชั่วคราวใหม่), ปลดล็อก (เมื่อถูกล็อก), ปิด/เปิดบัญชี, ยกเลิกการเชื่อม LINE
+- กฎ: ปิดบัญชีหรือเปลี่ยน role ของตัวเองไม่ได้ · ต้องเหลือ `admin` ที่ใช้งานอยู่อย่างน้อย 1 คน · ไม่มีปุ่มลบ
+
+**ผลกับข้อมูลเดิม** — ช่องที่เคยเก็บชื่อเป็นข้อความเปลี่ยนเป็นอ้างอิงผู้ใช้
+
+| ตอนนี้ | เปลี่ยนเป็น | เหตุผล |
+|-------|-----------|-------|
+| `Vehicle.driverName` / `driverPhone` / `driverAddress` | **ลบออก** | คนขับไม่ได้ผูกกับรถ |
+| `VehicleRunSheet.driverName` / `driverPhone` (copy จาก Vehicle) | `driverUserId` (FK User, บังคับ) + `driverName` / `driverPhone` (copy จาก User ตอนสร้าง สำหรับพิมพ์) | เลือกคนขับตอนออกใบวิ่งรถ, คนขับเห็นใบของตัวเอง |
+| `ConsignmentVisit.driverName` | `deliverySheetId` (FK) + `driverUserId` (FK User, copy จากใบส่งของ) | ใบเข้าร้านสร้างจากใบส่งของ คนขับเห็นงานที่ถูกมอบหมาย |
+| `ConsignmentVisit.status` `draft` / `signed` | + `cancelled` | ใบเข้าร้านที่ส่งไม่ได้หรือใบส่งของถูกยกเลิก |
+| `CustomerOrder` (ไม่มี) | + `deliverySheetId?` (FK ใบส่งของที่ยังเปิดอยู่) | กันคำสั่งซื้อเดียวอยู่ในใบส่งของ 2 ใบ |
+| `ProductionOrder.operatorName` | `operatorUserId` (FK User) | คนที่ทำงานตามใบสั่งผลิต |
+| `PurchaseOrder.createdByName`, `VehicleRunSheet.createdBy` / `printedBy` | `…UserId` (FK User) | บันทึกว่าใครทำ (รายละเอียดทุกการเปลี่ยนอยู่ใน Audit Log) |
+
+Data: see [21. User & Notification entities](#21-user--notification-entities).
+
+### LINE Integration
+
+> **Designed 2026-10-25, not yet built.**
+
+แจ้งเตือนผู้ใช้ทาง LINE ผ่าน LINE Official Account (OA) ของบริษัท
+
+| ฟิลด์ (บน User) | หมายเหตุ |
+|------|---------|
+| `lineUserId` | รหัสผู้ใช้ LINE (`U` + 32 ตัว) ห้ามซ้ำ ว่างได้ — ได้จากการเชื่อมผ่าน LINE Login เท่านั้น กรอกมือไม่ได้ |
+| `lineDisplayName`, `linePictureUrl` | ชื่อและรูปจาก LINE ให้ admin เห็นว่าผูกถูกคน |
+| `lineLinkedAt` | วันที่เชื่อม |
+| `lineStatus` | `unlinked` / `linked` / `blocked` (ผู้ใช้บล็อก OA → webhook `unfollow`; กลับมาเพิ่มเพื่อน → `follow` = `linked`) |
+
+**หลักการ**
+- **ส่งผ่าน LINE Messaging API ของ OA บริษัท** (push message) — ไม่ใช้ LINE Notify (ปิดบริการแล้ว)
+- **เชื่อมบัญชีด้วยปุ่ม "เชื่อมต่อ LINE" (LINE Login)** ในหน้าโปรไฟล์ของผู้ใช้เอง: กดปุ่ม → LINE ขอยืนยัน → ระบบได้ `lineUserId` และชวนเพิ่มเพื่อน OA ในขั้นตอนเดียว (`bot_prompt=aggressive`)
+  - LINE Login channel **ต้องอยู่ provider เดียวกับ** Messaging API channel ของ OA ไม่อย่างนั้น `lineUserId` จะไม่ตรงกับที่ OA ใช้ส่ง
+  - ใช้ `state` กัน CSRF · 1 บัญชี LINE ผูกได้กับผู้ใช้ 1 คน
+  - ผู้ใช้ยกเลิกการเชื่อมเองได้ · admin ยกเลิกให้ได้จากหน้าจัดการผู้ใช้
+  - LINE ใช้เพื่อแจ้งเตือนเท่านั้น **ไม่ใช้ login** (login ยังเป็นเบอร์โทร + รหัสผ่าน)
+- เหตุการณ์ที่แจ้ง, ผู้รับ, แจ้งเตือนในระบบ, การส่ง LINE และการติดตามว่าส่งผ่านหรือไม่ — ดู [Notifications (In-app & LINE)](#notifications-in-app--line)
+
+**ตั้งค่า LINE OA** — การ์ดในหน้าตั้งค่าระบบ (`/admin/settings`, admin เท่านั้น)
+
+| ค่า | หมายเหตุ |
+|-----|---------|
+| เปิด/ปิดการส่ง LINE | สวิตช์เดียวทั้งระบบ (ปิด = ส่งแค่ในระบบ) |
+| Messaging API: Channel ID, Channel secret, Channel access token | ใช้ส่งข้อความ และตรวจลายเซ็น webhook (`X-Line-Signature`) |
+| LINE Login: Channel ID, Channel secret | ใช้ปุ่มเชื่อมต่อ LINE |
+| Basic ID / ลิงก์เพิ่มเพื่อน | เช่น `@bangkokflower` แสดงในหน้าโปรไฟล์ |
+| App base URL | เช่น `https://app.example.com` ใช้ต่อเป็นลิงก์เต็มในข้อความ LINE |
+| Webhook URL, Callback URL | ระบบสร้างให้ แสดงอย่างเดียว ให้ admin คัดลอกไปวางใน LINE Developers |
+
+- **ค่าลับ** (secret, token) เข้ารหัสก่อนเก็บ · หน้าจอแสดงแบบปิดบัง (`••••abcd`) กรอกทับได้แต่ดูค่าเดิมไม่ได้ · API ไม่ส่งค่าลับกลับ
+- ปุ่ม **"ทดสอบส่ง"** ส่งข้อความหา LINE ของ admin ที่กด (ต้องเชื่อม LINE แล้ว)
+- การแก้ค่าบันทึกลง Audit Log โดยค่าลับบันทึกเป็น `"••••"` (รู้แค่ว่ามีการเปลี่ยน)
+
+### Notifications (In-app & LINE)
+
+> **Designed 2026-10-25, not yet built.** Data: see [21. User & Notification entities](#21-user--notification-entities).
+
+**หลักการ**
+- **1 เหตุการณ์ → 1 `Notification`** (เนื้อหา) **→ ผู้รับหลายคน** (`NotificationRecipient` = กล่องแจ้งเตือนในระบบของแต่ละคน) **→ การส่งต่อช่องทาง** (`NotificationDelivery` ต่อผู้รับต่อช่องทาง — ตอนนี้มีช่องทางเดียวคือ `line`) **→ ทุกครั้งที่เรียก LINE** (`NotificationDeliveryAttempt`)
+- **แจ้งในระบบทุกครั้ง** LINE ส่งเพิ่มเมื่อ: เปิดการส่ง LINE อยู่, ผู้ใช้เชื่อม LINE แล้ว, ไม่ได้บล็อก OA — ไม่เข้าเงื่อนไข = `skipped` พร้อมเหตุผล
+- **ผู้ใช้ปิดการแจ้งเตือนเองไม่ได้** ผู้รับกำหนดตามตารางเหตุการณ์
+- **ผู้รับกำหนดตอนเกิดเหตุการณ์ (snapshot)** — บัญชีที่ปิดอยู่ไม่ได้รับ · ผู้ใช้ที่เพิ่มทีหลังไม่ได้รับย้อนหลัง
+- **เนื้อหาเก็บเป็นข้อความสำเร็จรูป (snapshot)** — แก้เอกสารต้นทางทีหลัง ข้อความเดิมไม่เปลี่ยน (เห็นว่าตอนนั้นแจ้งอะไรไป)
+- **กันแจ้งซ้ำ** ด้วย `dedupeKey` ห้ามซ้ำ เช่น `runsheet.ready:{runSheetId}:{driverUserId}` — กดพิมพ์ใบวิ่งรถซ้ำไม่แจ้งซ้ำ แต่เปลี่ยนคนขับแล้วคนใหม่ได้รับ
+- **Transactional outbox** — สร้าง `Notification` + `NotificationRecipient` + `NotificationDelivery` (`pending`) ใน transaction เดียวกับการเปลี่ยนสถานะเอกสาร แล้วให้ background worker ส่ง LINE แยก: LINE ล่มไม่ทำให้งานหลักล้ม และไม่มีแจ้งเตือนหาย
+- **ทุกข้อความมีลิงก์** เปิดหน้าที่เกี่ยวข้อง (in-app = path, LINE = URL เต็มจาก `appBaseUrl`) · เปิดลิงก์ของเอกสารที่ไม่มีสิทธิ์แล้ว → หน้าไม่มีสิทธิ์
+- **ระยะเก็บข้อมูล** (ยืนยัน 2026-10-26) แจ้งเตือนในระบบ 180 วัน · ผลการส่ง LINE และ attempt 1 ปี
+
+**เหตุการณ์ (รอบแรก)** — แจ้งทั้งในระบบและ LINE
+
+| `eventType` | ส่งถึง | เมื่อไร | `dedupeKey` | ข้อความตัวอย่าง |
+|-------------|-------|--------|-------------|----------------|
+| `runsheet.ready` | คนขับของใบวิ่งรถ (`driverUserId`) | ใบวิ่งรถเปลี่ยนเป็น `Printed` · เปลี่ยนคนขับขณะ `Printed` (คนใหม่ได้รับ) | `runsheet.ready:{runSheetId}:{driverUserId}` | "ใบวิ่งรถ RS-… วันที่ 15 ม.ค. พร้อมแล้ว · รถ VH-001 · เส้นทาง A · 3 จุดรับ" |
+| `deliverysheet.ready` | คนขับของใบส่งของ (`driverUserId`) | ใบส่งของเปลี่ยนเป็น `Printed` · เปลี่ยนคนขับขณะ `Printed` (คนใหม่ได้รับ) | `deliverysheet.ready:{deliverySheetId}:{driverUserId}` | "ใบส่งของ DS-… วันที่ 15 ม.ค. พร้อมแล้ว · รถ VH-001 · 3 จุดส่ง (เข้าร้านฝากขาย 2)" |
+| `production_order.confirmed` | ผู้ใช้ `production` ที่ใช้งานอยู่ทุกคน | ใบสั่งผลิตเปลี่ยนเป็น `Confirmed` | `production_order.confirmed:{productionOrderId}` | "ใบสั่งผลิต PROD-… ช่อกุหลาบแดง 200 ช่อ · ไลน์ LINE-A ยืนยันแล้ว" |
+| `production_line.maintenance` | ผู้ใช้ `production` ที่ใช้งานอยู่ทุกคน | ไลน์ผลิตเปลี่ยนเป็น `maintenance` | `production_line.maintenance:{lineId}:{changedAt}` | "ไลน์ LINE-A ปิดซ่อม" |
+
+`admin` และ `staff` ยังไม่ได้รับแจ้งเตือนในรอบแรก
+
+งานเข้าร้านฝากขายแจ้งผ่าน `deliverysheet.ready` (ใบเข้าร้านสร้างจากใบส่งของเสมอ) — แทน `visit.assigned` เดิม **1 ใบ = 1 แจ้งเตือน** (ใบวิ่งรถ → `runsheet.ready`, ใบส่งของ → `deliverysheet.ready`) ไม่แจ้งแยกรายร้าน
+
+**แจ้งเตือนในระบบ**
+- **กระดิ่งที่ topbar อย่างเดียว ไม่มีหน้าแยก** — แสดงจำนวนที่ยังไม่อ่าน · กดแล้วเปิดรายการ เรียงใหม่สุดก่อน, เลื่อนลงโหลดเพิ่มทีละ 20, แท็บ "ทั้งหมด / ยังไม่อ่าน"
+- กดรายการ = อ่านแล้ว (`readAt`) + เปิดลิงก์ · ปุ่ม "อ่านทั้งหมด"
+
+**การส่ง LINE และการรู้ว่าส่งผ่านหรือไม่**
+- **"ส่งผ่าน" = LINE Messaging API ตอบรับข้อความ (HTTP 200)** — LINE ไม่บอกผลรายคนว่าผู้ใช้เปิดอ่านหรือไม่สำหรับ push message ระบบจึงรู้ได้แค่ "LINE รับแล้ว" / "LINE ไม่รับ (พร้อมเหตุผล)"
+- **ทุกการเรียก LINE ถูกบันทึก** (`NotificationDeliveryAttempt`): HTTP status, `x-line-request-id` (ใช้อ้างอิงเวลาติดต่อ LINE), ข้อความ error, เวลาที่ใช้
+- **ส่งซ้ำไม่ทำให้ผู้ใช้ได้ข้อความซ้ำ** — ทุก delivery มี `retryKey` (UUID) ส่งเป็น header `X-Line-Retry-Key` ทุก attempt ของ delivery เดียวกัน LINE รับข้อความนั้นได้ครั้งเดียว
+- **สถานะ delivery**
+
+```
+pending ──▶ sending ──▶ sent
+   ▲           │
+   └── retry ──┤ (retryable error, attemptCount < maxAttempts; รอ nextAttemptAt)
+               └──▶ failed (permanent error หรือครบ maxAttempts)
+pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive — ตรวจตอนจะส่ง)
+```
+
+- **ผลจาก LINE → สิ่งที่ระบบทำ**
+
+| ผลจาก LINE | `errorCode` | ความหมาย | ระบบทำ |
+|-----------|-------------|---------|--------|
+| 200 | — | LINE รับข้อความแล้ว | `sent` |
+| 409 (retry key เคยถูกรับแล้ว) | — | attempt ก่อนหน้าสำเร็จแล้วแต่ระบบไม่ได้รับคำตอบ | `sent` (ไม่ส่งซ้ำ) |
+| 429 โควตาเดือนนี้หมด | `quota_exceeded` | ข้อความเกินแพ็กเกจ OA | `failed` ไม่ลองซ้ำ |
+| 429 ส่งเร็วเกิน | `rate_limited` | เกิน rate limit | ลองซ้ำ |
+| 400 | `bad_request` | ข้อความหรือผู้รับไม่ถูกต้อง | `failed` ไม่ลองซ้ำ |
+| 401 / 403 | `auth_error` | access token ผิด/หมดอายุ/ไม่มีสิทธิ์ | `failed` ไม่ลองซ้ำ — ต้องแก้ค่าใน LINE OA settings |
+| 5xx | `server_error` | LINE ขัดข้อง | ลองซ้ำ |
+| timeout / เชื่อมต่อไม่ได้ | `timeout` / `network` | ไม่รู้ว่า LINE รับหรือไม่ | ลองซ้ำ (ปลอดภัยเพราะ retry key) |
+
+- **นโยบายลองซ้ำ** `maxAttempts` = 3 (ครั้งแรก + ลองซ้ำ 2 ครั้ง) · รอ 1 นาที แล้ว 5 นาที (ยืนยัน 2026-10-26)
+- **worker ค้าง** — delivery ที่อยู่ใน `sending` เกิน 5 นาที กลับเป็น `pending` (ปลอดภัยเพราะ retry key)
+- **ส่งใหม่ด้วยมือ (admin)** สำหรับ `failed` — สร้าง `NotificationDelivery` ใหม่ (`retryKey` ใหม่, `resentFromDeliveryId` ชี้ตัวเดิม, `resentByUserId`) ตัวเดิมคงไว้เป็นประวัติ
+
+**หน้าประวัติการส่ง LINE** (`/admin/line-deliveries`, admin เท่านั้น)
+- สรุปช่วงวันที่เลือก: ส่งผ่าน / ไม่ผ่าน / ข้าม / รอส่ง
+- ตาราง: เวลา, เหตุการณ์, ผู้รับ, สถานะ, จำนวนครั้งที่ลอง, เหตุผล (`errorCode` / `skipReason`) · กรองสถานะ, เหตุการณ์, ผู้รับ, ช่วงวัน
+- รายละเอียด: ข้อความที่ส่ง + ทุก attempt (เวลา, HTTP status, LINE request id, error)
+- ปุ่ม "ส่งใหม่" สำหรับรายการ `failed`
+
+### Audit Log
+
+> **Designed 2026-10-26, not yet built.** Data: see [22. AuditLog](#22-auditlog).
+
+บันทึกว่า **ใคร ทำอะไร กับข้อมูลไหน เมื่อไร เปลี่ยนจากอะไรเป็นอะไร** ให้ admin ตรวจสอบย้อนหลัง
+
+**หลักการ**
+- **Append-only** — แอปเพิ่มได้อย่างเดียว ไม่มีแก้ ไม่มีลบ (ระดับฐานข้อมูลให้สิทธิ์ INSERT/SELECT เท่านั้น) · ล้างได้เฉพาะงานตามระยะเก็บข้อมูล
+- **บันทึกใน transaction เดียวกับการเปลี่ยนข้อมูล** — ข้อมูลเปลี่ยนแล้วต้องมี log เสมอ ถ้าเขียน log ไม่ได้ การเปลี่ยนข้อมูลก็ไม่เกิด
+- **เก็บ snapshot ของผู้กระทำ** (ชื่อ, role ตอนนั้น) — เปลี่ยนชื่อหรือ role ทีหลัง log เดิมยังถูกต้อง
+- **เก็บเฉพาะฟิลด์ที่เปลี่ยน** (`changes`: field, from, to) ไม่เก็บทั้ง record
+- **ห้ามเก็บข้อมูลลับ** — รหัสผ่าน, password hash, secret / token ของ LINE บันทึกเป็น `"••••"` (รู้แค่ว่ามีการเปลี่ยน)
+- **ไม่บันทึกการเปิดดู** (read) และการอ่านแจ้งเตือน — มากเกินและไม่มีประโยชน์ตรวจสอบ
+- งานระบบ (worker, ตั้งเวลา) บันทึกเป็นผู้กระทำ `system`
+- **ระยะเก็บข้อมูล** (ยืนยัน 2026-10-26) 2 ปี
+- แทนที่ประวัติการแก้ค่าแบบเดิม (`SettingChange`) — ประวัติในหน้าตั้งค่าระบบอ่านจาก Audit Log ที่กรอง `entityType = SystemSetting`
+
+**สิ่งที่บันทึก**
+
+| กลุ่ม | ข้อมูล | `action` |
+|------|-------|----------|
+| เอกสารงาน | แผนจัดซื้อ, ใบสั่งซื้อ, ใบวิ่งรถ + บันทึกรับของ, ใบส่งของ, ใบสั่งผลิต, คำสั่งซื้อ, ใบเข้าร้าน, ยอดขายจากร้าน, ใบแจ้งหนี้ + รับชำระ | `create`, `update`, `delete`, `status_change` |
+| ข้อมูลหลัก | ซัพพลายเออร์ + จุดรับ + วัตถุดิบที่ขาย, รถ, เส้นทางรถ, ไลน์ผลิต, ลูกค้า, สินค้าสำเร็จรูป + สูตร (BOM), วัตถุดิบ, ตระกูลวัตถุดิบ | `create`, `update`, `delete`, `activate`, `deactivate` |
+| ผู้ใช้ (โดย admin) | สร้าง, แก้ไข, เปลี่ยน role, รีเซ็ตรหัส, ปลดล็อก, ปิด/เปิดบัญชี, ยกเลิกการเชื่อม LINE | `create`, `update`, `password_reset`, `unlock`, `activate`, `deactivate`, `line_unlink` |
+| การเข้าสู่ระบบ | login สำเร็จ / ไม่สำเร็จ, logout, บัญชีถูกล็อก, เปลี่ยนรหัสตัวเอง, เชื่อม / ยกเลิก LINE ของตัวเอง | `login_success`, `login_failed`, `logout`, `account_locked`, `password_change`, `line_link`, `line_unlink` |
+| ตั้งค่าระบบ | เกณฑ์เตือน, ค่า LINE OA, ส่ง LINE ใหม่ด้วยมือ | `update`, `resend` |
+
+`login_failed` ที่ไม่พบผู้ใช้ เก็บเบอร์โทรที่กรอกไว้ใน `entityLabel` (ไม่มี `actorUserId`) — ใช้ดูการเดารหัส
+
+**หน้า Audit Log** (`/admin/audit-log`, admin เท่านั้น)
+- ตาราง: เวลา, ผู้ใช้ (+ role), การกระทำ, ข้อมูล (ชนิด + เลขเอกสาร/ชื่อ เป็นลิงก์ไปหน้าเอกสาร), สรุป
+- กรอง: ช่วงวัน (ค่าเริ่มต้น 7 วันล่าสุด), ผู้ใช้, การกระทำ, ชนิดข้อมูล · ค้นหาเลขเอกสาร/ชื่อ
+- รายละเอียด: ตารางฟิลด์ที่เปลี่ยน (ชื่อฟิลด์ / ค่าเดิม / ค่าใหม่), IP, อุปกรณ์ (user agent), request id
+- ส่งออก CSV ตามตัวกรองปัจจุบัน (การส่งออกเองก็ถูกบันทึก `action = export`)
 
 ---
 
@@ -226,7 +607,9 @@ SALES & DISTRIBUTION (FLOW 8, next phase — not designed in detail yet)
 │ 2. View Raw Materials Summary                   │
 │    - Group by RM (Apple, Sugar, etc.)           │
 │    - Show: Name, Total Qty Needed, Unit         │
-│    - Display suppliers for each RM              │
+│    - Display suppliers that sell each RM        │
+│      (from SupplierRawMaterial) with their      │
+│      selling unit & price                       │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
@@ -237,8 +620,8 @@ SALES & DISTRIBUTION (FLOW 8, next phase — not designed in detail yet)
 │    - Per route show:                            │
 │      • Route name & location                    │
 │      • Route contact person & phone ← IMPORTANT │
-│      • RMs available at this route              │
-│      • Stock & price per route                  │
+│    - RMs, selling unit & price come from the    │
+│      Supplier (same for every route)            │
 │    - Click route to select                      │
 │    - Validation: Cannot select same supplier+   │
 │      route twice for same RM                    │
@@ -258,8 +641,9 @@ SALES & DISTRIBUTION (FLOW 8, next phase — not designed in detail yet)
 │ 5. Record Order Line Details                    │
 │    - Show: Supplier + Route (already selected)  │
 │    - Show: Route contact (for reference)        │
-│    - Input: Qty ordered                         │
-│    - Input: Price per unit (from this route)    │
+│    - Input: Qty ordered (in supplier's unit)    │
+│    - Price per supplier unit (from supplier's   │
+│      catalog, SupplierRawMaterial)              │
 │    - Auto-calculate: Total price                │
 │    - Show: Route pickup address                 │
 │    - Save order line                            │
@@ -398,9 +782,10 @@ OUTPUT: List of Purchase Orders
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ 1. Select Route, Vehicle & Date                  │
+│ 1. Select Route, Vehicle, Driver & Date          │
 │    - Dropdown: Choose VehicleRoute               │
 │    - Dropdown/List: Choose Vehicle               │
+│    - Dropdown: Choose Driver (User, role driver) │
 │    - Date Picker: Select run date                │
 │    - System validates vehicle is active          │
 └────────────────────┬─────────────────────────────┘
@@ -416,7 +801,7 @@ OUTPUT: List of Purchase Orders
                      ↓
 ┌──────────────────────────────────────────────────┐
 │ 3. Preview Run Sheet                             │
-│    - Display vehicle info (license, driver)      │
+│    - Display vehicle (license) & driver (User)   │
 │    - Display stops in order                      │
 │    - Per stop show:                              │
 │      • Route name & pickup address               │
@@ -434,7 +819,7 @@ OUTPUT: List of Purchase Orders
 ┌──────────────────────────────────────────────────┐
 │ 4. Print / Export Run Sheet                      │
 │    - Generate printable run sheet document       │
-│    - Format: 1 sheet per vehicle per day         │
+│    - 1 sheet = 1 trip (several per day OK)       │
 │    - Include: Vehicle ID, Date, Driver, Route   │
 │    - Include: All stops + PO details in order    │
 │    - Print or Export as PDF                      │
@@ -562,7 +947,9 @@ Trigger options (any of):
   └─ Event-driven: fired when a VehicleRunSheet transitions to "Completed"
 ```
 
-> **Open dependency gap**: Step 1 below needs "sales demand" as an input, but that's supposed to come from Sales Orders (FLOW 8) — and FLOW 8 is explicitly not designed yet. Until a Sales design exists, "sales demand" has no real source. The only input actually available today is the historical-sales trend already used to build Purchase Templates in FLOW 1 (§ FLOW 1, step 2 "View Finished Goods Sales"). A production-planning implementation would need to either (a) fall back to that historical trend as a demand proxy, or (b) wait until FLOW 8 exists and ships a real pending-orders feed. This gap should be resolved explicitly when FLOW 8 is designed, not assumed away.
+> **Demand source (resolved 2026-10-26)**: sales demand per delivery date = confirmed consignment estimates (per route) + confirmed customer orders delivering that day — see [FLOW 8](#flow-8-sales--distribution). The note below is kept for history.
+>
+> **Open dependency gap (superseded)**: Step 1 below needs "sales demand" as an input, but that's supposed to come from Sales Orders (FLOW 8) — and FLOW 8 is explicitly not designed yet. Until a Sales design exists, "sales demand" has no real source. The only input actually available today is the historical-sales trend already used to build Purchase Templates in FLOW 1 (§ FLOW 1, step 2 "View Finished Goods Sales"). A production-planning implementation would need to either (a) fall back to that historical trend as a demand proxy, or (b) wait until FLOW 8 exists and ships a real pending-orders feed. This gap should be resolved explicitly when FLOW 8 is designed, not assumed away.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -677,15 +1064,15 @@ Trigger options (any of):
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ 1. Calculate Yield & Grade                         │
+│ 1. Calculate Yield                                 │
 │    - yieldRate = actualQuantity / plannedQuantity   │
-│    - Grade: A (98-100%), B (95-97%), C (<95%)      │
+│    - No grade: LOTs are not graded (see note below) │
 └────────────────────┬─────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────┐
 │ 2. Register Batch                                  │
 │    - Create FinishedGoodsBatch                     │
-│    - Generate batch barcode (e.g., FG-2024-001-A)  │
+│    - Generate batch barcode (e.g., FG-2024-0001)   │
 │    - Set expirationDate                            │
 └────────────────────┬─────────────────────────────┘
                      ↓
@@ -700,38 +1087,59 @@ Trigger options (any of):
 
 **Output**: FG stock ready for Sales (FLOW 8), fully traceable back to its batch, production order, and the RM receipts (and their variance) that fed it.
 
+**No LOT grade (decision 2026-10-25)**: earlier drafts graded each LOT A/B/C from `yieldRate`. Removed — yield measures how much was lost in production, not how good each unit is, and real operations are flexible about which LOT goes where. `yieldRate` stays on the LOT for information; a low yield only raises a warning (`lowYieldPercent`, see [System Settings](#system-settings-configurable-thresholds)).
+
 ---
 
-### FLOW 8: Sales & Distribution (Next Phase)
+### FLOW 8: Sales & Distribution
 
-> **Not yet implemented. Not yet designed in detail** — captured here only at the level the companion comprehensive design doc describes it, as a placeholder so the end-to-end picture is complete. A dedicated Sales design pass is needed before this is buildable.
+> Mock UI built 2026-10-26 for routes, estimates, channels, delivery sheets and the delivery-day demand view (orders, email import, visits, store reports and invoices existed before). Business rules: [Sales Types & Daily Fulfilment](#sales-types--daily-fulfilment-ประเภทการขาย). Export details still open (❓).
 
+Daily cycle for delivery date **D**:
 ```
 ┌──────────────────────────────────────────────────┐
-│ 1. Receive Sales Orders                            │
-│    - Driver sales (walk-in/route selling) or        │
-│      fixed customer orders                          │
-│    - Check FinishedGoodsInventory.quantityAvailable │
-│    - Reserve FG for the order (quantityReserved += qty)│
+│ Before D (days ahead)                             │
+│  - Purchase plan: forecast from sales history     │
+│    (consignment + domestic orders, excl. platform)│
+│    + confirmed export orders (known demand)        │
+│  - Export orders keyed in from the platform        │
 └────────────────────┬─────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────┐
-│ 2. Pick & Pack                                     │
-│    - Warehouse picks from FG stock, verifies via    │
-│      batch barcode                                  │
-│    - FinishedGoodsInventory.quantityOnHand -= qty   │
-│    - FinishedGoodsInventory.quantityReserved -= qty │
+│ D-1 morning                                        │
+│  - Email/file import → screen → confirm orders     │
+│    (phone orders keyed in at any time)             │
+│  - Staff make a ConsignmentEstimate for every      │
+│    route running on D → confirm                    │
 └────────────────────┬─────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────┐
-│ 3. Shipping & Delivery                             │
-│    - Domestic: vehicle delivery to branches/customers│
-│    - Export: air cargo to airport                   │
-│    - Record delivery completion & generate invoice   │
+│ D-1 afternoon (normal — allowed at any time)       │
+│  - Production planning for delivery date D:        │
+│    estimates per route + confirmed orders          │
+│  - Production orders: route × product /            │
+│    order × product → produce → LOT reserved        │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│ D                                                  │
+│  - Route delivery sheet: load (scan LOTs) →        │
+│    shops in order, visit scan + sign (driver may   │
+│    split the load freely) → returns back to stock  │
+│  - Direct delivery sheet: domestic customers ·     │
+│    airport for export                              │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│ After delivery                                     │
+│  - Consignment: store sales report → invoice       │
+│  - Fixed order: invoice on delivery                │
+│  - Export: English commercial invoice +            │
+│    packing list (system-issued)                    │
 └──────────────────────────────────────────────────┘
 ```
 
-**Cannot fulfill an order if**: FG batch has quality/variance issues, grade is below the customer's requirement, the batch is expiring soon, or the batch was never properly registered (FLOW 7).
+**Cannot fulfill an order if**: the batch was never properly registered (FLOW 7). Quality/variance issues and LOTs expiring soon are warnings, not blocks — see [System Settings](#system-settings-configurable-thresholds). There is no LOT grade to match against a customer requirement.
 
 ---
 
@@ -776,7 +1184,8 @@ Trigger options (any of):
   rawMaterialId: UUID (FK)
   rawMaterialName: string
   requiredQuantity: decimal
-  quantityUnit: string (e.g., "Kg", "Liter")
+  quantityUnit: string (base unit, e.g., "Kg", "Liter")
+  // supplier quantities below are in each supplier's own unit (SupplierRawMaterial.supplierUnit)
   
   // Supplier info (denormalized for easy display)
   suppliers: TemplateRawMaterialSupplier[]
@@ -800,8 +1209,9 @@ Trigger options (any of):
   routePhone: string (phone for this route)
   
   // Order details
-  orderedQuantity: decimal = null (filled after phone call)
-  pricePerUnit: decimal = null
+  confirmedQuantity: decimal = null (in supplierUnit, confirmed by phone call)
+  orderedQuantity: decimal = null (in supplierUnit)
+  pricePerUnit: decimal = null (per supplierUnit, defaulted from SupplierRawMaterial.pricePerSupplierUnit)
   totalPrice: decimal (calculated)
   expectedDeliveryDate: DateTime = null
   
@@ -828,9 +1238,11 @@ Trigger options (any of):
 ```
 {
   id: UUID
-  name: string
+  sku: string
+  nameTh: string
+  nameEn: string (optional)
   description: string
-  unit: string
+  unit: string (BASE unit used by BOM / stock / planning; supplier selling units are on SupplierRawMaterial)
   
   // BOM relation
   bom: BillOfMaterial[]
@@ -854,14 +1266,22 @@ Trigger options (any of):
 ```
 {
   id: UUID
-  name: string (e.g., "Supplier A Co.")
-  email: string
-  contactPerson: string (main contact)
-  mainPhone: string
-  mainAddress: string
+  supplierType: enum ["individual", "company"]
+  name: string (display name, derived: individual = title+firstName+lastName, company = companyName)
+  // individual: title?, firstName, lastName
+  // company: companyName, branchCode (5 digits, "00000" = head office)
+  email: string (optional)
+  contactPerson: string (the person themself for individual)
+  phone: string
+  address: string (registered / head-office)
+  taxId: string (optional, 13 digits: national ID or corporate tax ID)
+  isActive: boolean
+  createdAt: DateTime
   
-  // Routes/Branches
+  // Routes/Branches (pickup locations)
   supplierRoutes: SupplierRoute[]
+  // Catalog: raw materials sold, with selling unit & price
+  supplierRawMaterials: SupplierRawMaterial[]
 }
 ```
 
@@ -873,8 +1293,11 @@ Trigger options (any of):
   supplierId: UUID (FK)
   routeName: string (e.g., "สวน A - Chiang Mai")
   routeCode: string (e.g., "SR-A-001")
-  location: string (province/region)
-  address: string (full address for pickup)
+  addressLine, subdistrict, district, province, postalCode: string (postal code 5 digits)
+  address: string (full pickup address, composed from the parts above; denormalized for run sheets)
+  latitude, longitude: decimal (optional, WGS84, both or neither)
+  mapUrl: string (optional Google Maps link; built from coordinates when empty)
+  directions: string (optional landmarks / how to get in)
   contactPerson: string (contact at this route)
   phone: string
   email: string (optional)
@@ -882,8 +1305,7 @@ Trigger options (any of):
   isActive: boolean
   createdDate: DateTime
   
-  // Raw materials available at this route
-  supplierRouteRawMaterials: SupplierRouteRawMaterial[]
+  // (no raw materials here — the catalog lives on Supplier: SupplierRawMaterial)
 }
 ```
 
@@ -904,6 +1326,22 @@ Trigger options (any of):
 }
 ```
 
+> **SUPERSEDED** — the model above is the old per-route catalog. Current design: see **SupplierRawMaterial** below.
+
+### 9.1 SupplierRawMaterial (CURRENT — replaces SupplierRouteRawMaterial)
+
+Raw materials a supplier sells. Belongs to the **Supplier**, shared by all its routes.
+
+```
+{
+  supplierId: UUID (FK)
+  rawMaterialId: UUID (FK)           // composite key (supplierId, rawMaterialId)
+  supplierUnit: string               // unit the supplier sells in, e.g. "sack", "box", "bunch"
+  unitsPerSupplierUnit: decimal      // base units in 1 supplierUnit (RawMaterial.unit)
+  pricePerSupplierUnit: decimal      // price per 1 supplierUnit
+}
+```
+
 ---
 
 ### 10. Vehicle (NEW - Master Data)
@@ -915,11 +1353,7 @@ Trigger options (any of):
   licensePlate: string (e.g., "กข-1234 Bangkok")
   vehicleType: string (e.g., "Pickup", "Van", "Truck")
   capacity: decimal (e.g., 2000 Kg)
-  
-  // Driver Info
-  driverName: string
-  driverPhone: string
-  driverAddress: string (optional)
+  // No driver: the driver is chosen per run sheet (VehicleRunSheet.driverUserId)
   
   // Status & Metadata
   isActive: boolean
@@ -981,14 +1415,15 @@ Trigger options (any of):
 ```
 {
   id: UUID
-  runSheetNumber: string (e.g., "RS-2024-001-2024-01-15", unique per day+vehicle)
+  runSheetNumber: string (e.g., "RS-20240115-001", unique — a vehicle/driver may have several run sheets and delivery sheets per day)
   vehicleId: UUID (FK)
   vehicleRouteId: UUID (FK)
   runDate: DateTime (date of the run)
   
-  // Driver info (copy from Vehicle at time of run sheet creation)
-  driverName: string (denormalized)
-  driverPhone: string (denormalized)
+  // Driver chosen when the run sheet is generated (not tied to the vehicle)
+  driverUserId: UUID (FK User, role "driver")
+  driverName: string (denormalized from User at creation, for printing)
+  driverPhone: string (denormalized from User at creation, for printing)
   
   // Status
   status: enum ["Draft", "Printed", "InProgress", "Completed", "Cancelled"]
@@ -1114,6 +1549,121 @@ Driven by explicit row actions on the Purchase Orders screen: **Send to supplier
 
 ---
 
+### 14.2 DeliverySheet (NEW - Delivery Trip Document)
+
+> Mock UI built 2026-10-26. Business rules: [Delivery Sheet](#delivery-sheet-ใบส่งของ).
+
+```
+DeliverySheet {
+  id: UUID
+  deliverySheetNumber: string         // "DS-20260115-002", unique
+  sheetType: enum ["consignment_route", "direct"]   // never mixed
+  consignmentRouteId: UUID?           // consignment_route: stops pre-filled from the route
+  consignmentEstimateId: UUID?        // consignment_route: load lines pre-filled from it
+  deliveryDate: Date
+  vehicleId: UUID (FK Vehicle)
+  driverUserId: UUID (FK User, role "driver")
+  driverName: string                  // copied from User for printing
+  driverPhone: string
+  status: enum ["Draft", "Printed", "Completed", "Cancelled"]
+  printedAt: DateTime?                // trip order of the day
+  printedByUserId: UUID?
+  completedAt: DateTime?              // set when every stop is done or failed
+  cancelledAt: DateTime?
+  cancelledByUserId: UUID?
+  cancelReason: string?
+  createdByUserId: UUID
+  createdAt: DateTime
+  returnRecordedAt: DateTime?         // consignment_route: required before Completed
+  loadLines: DeliverySheetLoadLine[]  // consignment_route only
+  stops: DeliverySheetStop[]          // ordered by sequence
+}
+
+DeliverySheetLoadLine {
+  id: UUID
+  deliverySheetId: UUID (FK)
+  finishedGoodId: UUID (FK)
+  loadedQuantity: decimal             // scanned on loading (default = estimate total)
+  loadedBatchNumbers: string[]
+  returnedQuantity: decimal?          // scanned back after the trip → FG stock
+  returnedBatchNumbers: string[]
+  // variance = loaded − Σ delivered on this sheet's visits − returned (warning only)
+}
+
+DeliverySheetStop {
+  id: UUID
+  deliverySheetId: UUID (FK)
+  sequence: int                       // set by staff (drag to reorder)
+  stopType: enum ["customer_order", "consignment_visit"]   // direct → customer_order · consignment_route → consignment_visit
+  customerId: UUID (FK Customer)
+  customerName: string                // copied for printing
+  address: string
+  contactName: string?
+  contactPhone: string?
+  customerOrderId: UUID?              // stopType = customer_order
+  consignmentVisitId: UUID?           // stopType = consignment_visit (created with the stop)
+  status: enum ["pending", "done", "failed"]
+  failReason: string?
+  resolvedAt: DateTime?
+  resolvedByUserId: UUID?
+}
+```
+
+**Changes to sales entities**
+- `CustomerOrder.deliverySheetId?` — the open sheet carrying the order; cleared when the stop fails or the sheet is cancelled
+- `ConsignmentVisit.deliverySheetId` (FK) + `driverUserId` copied from the sheet (replaces `driverName`); status adds `cancelled`
+- A stop becomes `done` when its order is recorded delivered or its visit is signed
+
+### 14.3 ConsignmentRoute & ConsignmentEstimate (NEW - Sales)
+
+> Mock UI built 2026-10-26. Business rules: [Sales Types & Daily Fulfilment](#sales-types--daily-fulfilment-ประเภทการขาย).
+
+```
+ConsignmentRoute {                    // สายฝากขาย — separate from VehicleRoute (pickup)
+  id: UUID
+  code: string                        // "CR-01", unique
+  name: string
+  daysOfWeek: int[]                   // required, at least 1 day (all 7 = daily)
+  isActive: boolean
+  stops: ConsignmentRouteStop[]
+}
+
+ConsignmentRouteStop {
+  id: UUID
+  consignmentRouteId: UUID (FK)
+  sequence: int
+  customerId: UUID (FK Customer, type consignment)   // unique per route; a shop may be on many routes
+}
+
+ConsignmentEstimate {                 // ยอดประเมินลงร้าน — not an order, not a sale
+  id: UUID
+  estimateNumber: string              // "CE-20260115-001", unique
+  deliveryDate: Date
+  consignmentRouteId: UUID (FK)       // unique (route, date) among non-cancelled
+  status: enum ["draft", "confirmed", "cancelled"]
+  confirmedAt: DateTime?
+  confirmedByUserId: UUID?
+  createdByUserId: UUID
+  createdAt: DateTime
+  lines: ConsignmentEstimateLine[]
+}
+
+ConsignmentEstimateLine {
+  id: UUID
+  consignmentEstimateId: UUID (FK)
+  customerId: UUID (FK)               // shop on the route
+  finishedGoodId: UUID (FK)
+  suggestedQuantity: decimal          // system: recent shop sales, stock left in shop, last spoilage
+  estimatedQuantity: decimal          // staff, ≥ 0
+}
+```
+
+**Changes to sales entities**
+- `CustomerOrder.channel: enum ["email", "phone", "platform", "manual"]` — `email` = from EmailImport (draft until screened)
+- `CustomerOrder.platformName?`, `platformOrderRef?` — unique pair when set
+- `Customer.country?`, `nameEn?`, `addressEn?` (export documents), `currency?` ❓ — an export customer is the overseas buyer, not the platform
+- ❓ Export fields pending answers: currency / payment route, packing per box, AWB / flight, phytosanitary
+
 ### Production, Inventory & Finished Goods Entities (Target Design)
 
 > **Not yet implemented** — none of the entities below have a matching table, DTO, or mock dataset in this repo. They describe the target model for FLOW 4-8.
@@ -1196,11 +1746,16 @@ RawMaterialInventory.
   id: UUID
   poNumber: string (e.g., "PROD-2024-001")
   productionPlanLineId: UUID (FK - links back to the approved AI plan line)
+  source: enum ["consignment_route", "customer_order", "manual"]   // added 2026-10-26
+  consignmentRouteId: UUID (nullable)     // consignment_route: one order per route × delivery date × product
+  consignmentEstimateId: UUID (nullable)
+  customerOrderId: UUID (nullable)        // customer_order: one order per order × product
+  deliveryDate: Date (nullable)           // delivery date the goods are for
   finishedGoodId: UUID (FK)
   plannedQuantity: decimal
   actualQuantity: decimal (nullable, filled on completion)
   productionLineId: UUID (FK)
-  batchNumber: string (e.g., "BH-2024-001-A")
+  batchNumber: string (e.g., "BH-2024-0001")
   rmAllocations: RMAllocation[] (RM reserved & consumed for this order)
   status: enum ["Draft", "Confirmed", "InProduction", "Completed"]
   yieldRate: decimal (%, nullable until completed)
@@ -1217,22 +1772,172 @@ RawMaterialInventory.
 ```
 {
   id: UUID
-  batchNumber: string (e.g., "BH-2024-001-A")
+  batchNumber: string (e.g., "BH-2024-0001")
   finishedGoodId: UUID (FK)
   productionOrderId: UUID (FK)
   quantity: decimal
   unit: string
-  gradeLevel: enum ["A", "B", "C"]      // A: 98-100% yield, B: 95-97%, C: <95%
   qualityScore: decimal (%)
   yieldRate: decimal (%)
   location: string (warehouse shelf, optional)
   expirationDate: DateTime
-  barcode: string (e.g., "FG-2024-001-A", unique)
+  barcode: string (e.g., "FG-2024-0001", unique)
   status: enum ["Available", "Reserved", "Sold", "Expired"]
 }
 ```
 
 **Traceability chain**: `FinishedGoodsBatch → ProductionOrder → RMAllocation → RawMaterialInventory` movement `→` (further back) the `VehicleRunSheetStop` receipt that brought that RM in, with its recorded variance. This is what lets Sales (FLOW 8) refuse to fulfil an order from a batch with quality/variance issues.
+
+### 20. SystemSetting
+
+```
+SystemSetting {                        // one row per configurable value
+  key: string (PK, e.g. "wasteWarnPercent")
+  group: enum ["sales", "procurement", "inventory", "production"]
+  value: decimal
+  defaultValue: decimal
+  unit: string ("%", "วัน", "ชิ้น")
+  min: decimal
+  max: decimal
+}
+```
+
+Change history is not a separate entity — every save writes AuditLog entries (`entityType = "SystemSetting"`, `entityId = key`, `changes = [{ field: "value", from, to }]`).
+
+Values and rules: see [System Settings](#system-settings-configurable-thresholds). A key added later falls back to its `defaultValue` until saved.
+
+### 21. User & Notification entities
+
+> Designed, not yet built — see [Users, Roles & Authentication](#users-roles--authentication), [LINE Integration](#line-integration) and [Notifications (In-app & LINE)](#notifications-in-app--line).
+
+```
+User {
+  id: UUID
+  firstName: string
+  lastName: string
+  phone: string (unique, normalized "0XXXXXXXXX")
+  email: string (nullable)
+  role: enum ["admin", "staff", "driver", "production"]
+  passwordHash: string
+  mustChangePassword: boolean
+  isActive: boolean
+  failedLoginCount: int
+  lockedUntil: DateTime (nullable)
+  lastLoginAt: DateTime (nullable)
+  lineUserId: string (nullable, unique)
+  lineDisplayName: string (nullable)
+  linePictureUrl: string (nullable)
+  lineLinkedAt: DateTime (nullable)
+  lineStatus: enum ["unlinked", "linked", "blocked"]
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+UserSession {                         // refresh token; revoked on deactivate / role change / password reset
+  id: UUID
+  userId: UUID (FK)
+  refreshTokenHash: string
+  expiresAt: DateTime                 // 30 days driver/production, 12 h admin/staff
+  revokedAt: DateTime (nullable)
+  createdAt: DateTime
+}
+
+LineChannelConfig {                   // single row
+  enabled: boolean
+  messagingChannelId: string
+  messagingChannelSecret: string (encrypted)
+  messagingAccessToken: string (encrypted)
+  loginChannelId: string
+  loginChannelSecret: string (encrypted)
+  basicId: string                     // e.g. "@bangkokflower"
+  appBaseUrl: string                  // absolute links in LINE messages
+  updatedByUserId: UUID (FK)
+  updatedAt: DateTime
+}
+
+Notification {                        // one per event occurrence — the content
+  id: UUID
+  eventType: enum ["runsheet.ready", "deliverysheet.ready", "production_order.confirmed", "production_line.maintenance"]
+  sourceType: string                  // e.g. "VehicleRunSheet", "DeliverySheet", "ProductionOrder", "ProductionLine"
+  sourceId: UUID
+  title: string                       // rendered snapshot
+  body: string                        // rendered snapshot
+  linkPath: string                    // in-app path, e.g. "/logistics/run-sheets/{id}"
+  dedupeKey: string (unique)          // see event table
+  createdByUserId: UUID (nullable FK) // who triggered it; null = system
+  createdAt: DateTime
+}
+
+NotificationRecipient {               // a user's in-app inbox entry
+  id: UUID
+  notificationId: UUID (FK)
+  userId: UUID (FK)
+  readAt: DateTime (nullable)
+  createdAt: DateTime
+  // unique (notificationId, userId) · index (userId, readAt, createdAt desc)
+}
+
+NotificationDelivery {                // one per recipient per external channel
+  id: UUID
+  recipientId: UUID (FK NotificationRecipient)
+  channel: enum ["line"]
+  status: enum ["pending", "sending", "sent", "failed", "skipped"]
+  skipReason: enum (nullable) ["line_disabled", "not_linked", "blocked", "user_inactive"]
+  lineUserId: string (nullable)       // snapshot of the address actually used
+  retryKey: UUID                      // sent as X-Line-Retry-Key on every attempt
+  attemptCount: int
+  maxAttempts: int (default 3)
+  nextAttemptAt: DateTime (nullable)
+  sentAt: DateTime (nullable)
+  failedAt: DateTime (nullable)
+  errorCode: enum (nullable) ["bad_request", "auth_error", "quota_exceeded", "rate_limited", "server_error", "timeout", "network"]
+  errorMessage: string (nullable)     // last error, from LINE response body
+  resentFromDeliveryId: UUID (nullable FK self)
+  resentByUserId: UUID (nullable FK User)
+  createdAt: DateTime
+  updatedAt: DateTime
+  // index (status, nextAttemptAt) for the worker · index (createdAt) for the admin log
+}
+
+NotificationDeliveryAttempt {         // every call to the LINE API
+  id: UUID
+  deliveryId: UUID (FK)
+  attemptNo: int                      // 1..maxAttempts · unique (deliveryId, attemptNo)
+  startedAt: DateTime
+  durationMs: int (nullable)
+  httpStatus: int (nullable)          // null = timeout / network error
+  lineRequestId: string (nullable)    // x-line-request-id response header
+  outcome: enum ["accepted", "retryable_error", "permanent_error"]
+  errorCode: enum (nullable)          // same values as NotificationDelivery.errorCode
+  errorMessage: string (nullable)
+}
+```
+
+### 22. AuditLog
+
+> Designed, not yet built — see [Audit Log](#audit-log).
+
+```
+AuditLog {                            // append-only
+  id: UUID
+  occurredAt: DateTime
+  actorUserId: UUID (nullable FK User)  // null = system, or login_failed for an unknown phone
+  actorName: string                   // snapshot, "system" for jobs
+  actorRole: string (nullable)        // snapshot
+  action: enum ["create", "update", "delete", "status_change", "activate", "deactivate",
+                "login_success", "login_failed", "logout", "account_locked", "password_change",
+                "password_reset", "unlock", "line_link", "line_unlink", "resend", "export"]
+  entityType: string                  // e.g. "PurchaseOrder", "User", "SystemSetting", "LineChannelConfig"
+  entityId: string (nullable)         // UUID, or the setting key
+  entityLabel: string (nullable)      // human label snapshot, e.g. "PO-2026-0012", "สมศักดิ์ ใจดี"
+  summary: string                     // Thai sentence, e.g. "เปลี่ยนสถานะ ร่าง → ส่งแล้ว"
+  changes: JSON (nullable)            // [{ field, label, from, to }] — changed fields only, secrets masked "••••"
+  ipAddress: string (nullable)
+  userAgent: string (nullable)
+  requestId: string (nullable)        // correlates with application logs
+  // index (occurredAt desc) · (actorUserId, occurredAt) · (entityType, entityId, occurredAt) · (action, occurredAt)
+}
+```
 
 ---
 
@@ -1512,18 +2217,18 @@ RawMaterialInventory.
 │ [Search: ___________] [Filter ▼] [+ New Vehicle]   │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│ Code    License Plate    Driver Name    Status       │
+│ Code    License Plate    Type     Status             │
 │ ─────────────────────────────────────────────────── │
-│ VH-001  กข-1234 Bangkok  Mr. Somchai   Active  [>] │
-│ VH-002  กข-5678 Prachuap Mr. Niran     Active  [>] │
-│ VH-003  กข-9999 Bangkok  Mr. Prasit    Inactive[>] │
+│ VH-001  กข-1234 Bangkok  Pickup   Active        [>] │
+│ VH-002  กข-5678 Prachuap Truck    Active        [>] │
+│ VH-003  กข-9999 Bangkok  Van      Inactive      [>] │
 │                                                      │
 │                        [Pagination]                  │
 └──────────────────────────────────────────────────────┘
 ```
 
 **Components**:
-- SearchBox (vehicleCode, licensePlate, driverName)
+- SearchBox (vehicleCode, licensePlate)
 - StatusBadge (Active, Inactive)
 - ActionMenu (View, Edit, Delete)
 - CreateButton
@@ -1563,9 +2268,10 @@ RawMaterialInventory.
 │ Generate Vehicle Run Sheet                           │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│ Select Route, Vehicle & Date:                       │
+│ Select Route, Vehicle, Driver & Date:               │
 │ Route:   [Route A (Mon-Fri)] ▼                     │
-│ Vehicle: [VH-001 - Mr. Somchai] ▼                  │
+│ Vehicle: [VH-001 - กข-1234] ▼                      │
+│ Driver:  [สมศักดิ์ ใจดี - 081-xxx-xxxx] ▼           │
 │ Date:    [15-Jan-2024] 📅                          │
 │                                                      │
 │ [Search POs for this route]                         │
@@ -1812,6 +2518,20 @@ RawMaterialInventory.
 │   └── /logistics/run-sheets/{id}/record-receipt
 └── /logistics/routes
     └── /logistics/routes/{id}/runs
+
+/logistics/delivery-sheets      (delivery trips — list · /new · /{id})
+/sales/consignment-routes      (consignment routes — ordered shops)
+/sales/estimates               (consignment estimates — list by delivery date · /{id})
+/production/raw-materials      (raw material stock, tab after finished goods)
+/my-jobs                       (driver — jobs today)
+
+/admin                          (admin only — one menu, 4 tabs)
+├── /admin/users               (user management)
+├── /admin/settings            (System Settings, LINE OA — code currently at /settings)
+├── /admin/line-deliveries     (LINE delivery log)
+└── /admin/audit-log           (audit log)
+/login                         (public — phone + password)
+/profile                       (every user — change password, connect LINE)
 ```
 
 ---
@@ -2044,14 +2764,12 @@ POST   /api/vehicles
          vehicleCode: string,
          licensePlate: string,
          vehicleType: string,
-         capacity: decimal,
-         driverName: string,
-         driverPhone: string
+         capacity: decimal
        }
        Response: Vehicle
 
 PUT    /api/vehicles/{id}
-       Body: { vehicleCode, licensePlate, driverName, ... }
+       Body: { vehicleCode, licensePlate, vehicleType, capacity, isActive }
        Response: Vehicle
 
 DELETE /api/vehicles/{id}
@@ -2117,6 +2835,7 @@ POST   /api/vehicle-run-sheets/generate
        Body: {
          vehicleId: UUID,
          vehicleRouteId: UUID,
+         driverUserId: UUID,
          runDate: DateTime
        }
        Response: {
@@ -2192,6 +2911,125 @@ POST   /api/vehicle-run-sheets/{id}/record-receipt
 
 DELETE /api/vehicle-run-sheets/{id}
        Response: { success: boolean }
+```
+
+#### Delivery Sheets (NEW)
+
+```
+GET    /api/delivery-sheets         Query: ?date=&vehicleId=&driverUserId=&status=&page=1&limit=10
+GET    /api/delivery-sheets/candidates?date=&sheetType=
+       Response: direct → { customerOrders: confirmed, undelivered, not on an open sheet }
+                 consignment_route → { routes: active routes running that day + estimate (if any) }
+POST   /api/delivery-sheets         Body: { sheetType, deliveryDate, vehicleId, driverUserId,
+                                            consignmentRouteId?, loadLines?,
+                                            stops: [{ customerOrderId? | customerId }] }
+                                    Route sheets: stops default to the route, load lines to the estimate;
+                                    creates a ConsignmentVisit per stop
+POST   /api/delivery-sheets/{id}/return    Route sheets: Body: { lines: [{ loadLineId, returnedQuantity, batchNumbers }] }
+                                    Returns go back to FG stock; sheet completes once stops are resolved
+GET    /api/delivery-sheets/{id}
+PUT    /api/delivery-sheets/{id}    Draft: vehicle, driver, stops (order = array order) · Printed: driverUserId only
+POST   /api/delivery-sheets/{id}/print     Draft → Printed, emits deliverysheet.ready
+POST   /api/delivery-sheets/{id}/cancel    Body: { reason } — only when no stop is done
+POST   /api/delivery-sheets/{id}/stops/{stopId}/fail   Body: { reason }
+GET    /api/logistics/day-load      Query: ?date=&vehicleId=&driverUserId=
+       Response: other run sheets / delivery sheets of that vehicle or driver that day (info only)
+GET    /api/me/jobs                 Query: ?date= (default today) — driver only
+       Response: own Printed/Completed run sheets + delivery sheets, ordered by printedAt, no prices
+```
+
+#### Consignment Routes & Estimates (NEW)
+
+```
+GET    /api/consignment-routes      Query: ?isActive=&runsOn=
+POST   /api/consignment-routes      Body: { code, name, daysOfWeek, stops: [{ customerId }] }   (order = array order)
+PUT    /api/consignment-routes/{id} Deactivate instead of delete once used
+GET    /api/consignment-estimates   Query: ?date=&routeId=&status=
+GET    /api/consignment-estimates/suggest?date=&routeId=
+       Response: [{ customerId, finishedGoodId, suggestedQuantity, basis: { recentSales, leftInShop, lastSpoiled } },
+                  otherRoutesSameDay: [{ customerId, routeCode }]]
+POST   /api/consignment-estimates   Body: { deliveryDate, consignmentRouteId, lines }
+PUT    /api/consignment-estimates/{id}   Until the route's delivery sheet is printed
+POST   /api/consignment-estimates/{id}/confirm
+POST   /api/consignment-estimates/{id}/cancel
+GET    /api/production/demand       Query: ?deliveryDate=
+       Response: { routes: [{ estimate, products: [{ finishedGoodId, estimatedTotal, producedOrPlanned }] }],
+                   orders: [{ customerOrder, channel, lines, productionOrders }] }
+POST   /api/production-orders/from-estimate/{estimateId}
+       Body: { lines: [{ finishedGoodId, plannedQuantity, productionLineId }] }   one order per product
+```
+`CustomerOrder` create/edit takes `channel`, `platformName?`, `platformOrderRef?`.
+
+#### System Settings
+
+```
+GET    /api/settings
+       Response: SystemSetting[]
+
+PUT    /api/settings
+       Body: { values: { [key]: number } }
+       Note: Admin only. Validates ranges and cross rules (wasteDangerPercent > wasteWarnPercent),
+             writes one AuditLog entry per value that changed.
+       Response: SystemSetting[]
+
+// Change history: GET /api/audit-logs?entityType=SystemSetting
+```
+
+#### Audit Log (admin only)
+
+```
+GET    /api/audit-logs              Query: ?from=&to=&actorUserId=&action=&entityType=&entityId=&q=&page=1&limit=50
+       Response: { items: AuditLog[] (without changes), total }
+GET    /api/audit-logs/{id}         Response: AuditLog (with changes)
+GET    /api/audit-logs/export       Same filters → CSV; itself logged as action "export"
+```
+
+
+#### Auth, Users & LINE (Designed, not yet built)
+
+```
+// Auth
+POST   /api/auth/login              Body: { phone, password }
+       Response: { accessToken, refreshToken, user, mustChangePassword }
+       Errors: 401 "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง" · 423 locked (lockedUntil) · 403 inactive
+POST   /api/auth/refresh            Body: { refreshToken }
+POST   /api/auth/logout             Revokes the current session
+POST   /api/auth/change-password    Body: { currentPassword, newPassword } — clears mustChangePassword
+
+// Me
+GET    /api/me                      Response: User (no passwordHash) + permissions[]
+GET    /api/me/line/link-url        Response: { url } — LINE Login authorize URL with state + bot_prompt=aggressive
+GET    /api/line/login/callback     LINE Login redirect; exchanges code, saves lineUserId/displayName/picture, redirects to /profile
+DELETE /api/me/line                 Unlink own LINE
+
+// Users (admin only)
+GET    /api/users                   Query: ?q=&role=&status=active|inactive|locked&page=1&limit=10
+POST   /api/users                   Body: { firstName, lastName, phone, email?, role }
+       Response: { user, temporaryPassword }   // shown once
+PUT    /api/users/{id}              Body: { firstName, lastName, phone, email?, role }
+POST   /api/users/{id}/reset-password   Response: { temporaryPassword } — revokes sessions
+POST   /api/users/{id}/unlock
+POST   /api/users/{id}/deactivate   Revokes sessions · POST /api/users/{id}/activate
+DELETE /api/users/{id}/line         Unlink user's LINE
+
+// LINE OA (admin only)
+GET    /api/settings/line           Secrets returned masked only
+PUT    /api/settings/line           Empty secret field = keep current value
+POST   /api/settings/line/test      Push a test message to the calling admin
+POST   /api/line/webhook            Verify X-Line-Signature; follow → linked, unfollow → blocked
+
+// Notifications (in-app, every user — own inbox only)
+GET    /api/notifications           Query: ?unread=true&page=1&limit=20   (topbar bell; scroll loads the next page)
+       Response: { items: [{ recipientId, readAt, notification: { eventType, title, body, linkPath, createdAt } }], total, unreadCount }
+GET    /api/notifications/unread-count
+POST   /api/notifications/{recipientId}/read
+POST   /api/notifications/read-all
+
+// LINE deliveries (admin only)
+GET    /api/line-deliveries         Query: ?status=&eventType=&userId=&from=&to=&page=1&limit=20
+GET    /api/line-deliveries/summary Query: ?from=&to=  Response: { sent, failed, skipped, pending }
+GET    /api/line-deliveries/{id}    Response: NotificationDelivery + notification + recipient user + attempts[]
+POST   /api/line-deliveries/{id}/resend   Only when status = failed; creates a new delivery (new retryKey)
 ```
 
 ---
@@ -2273,7 +3111,7 @@ POST   /api/production-orders/{id}/complete
 
 POST   /api/production-orders/{id}/register-finished-goods
        Body: {}
-       Note: Creates FinishedGoodsBatch, assigns gradeLevel from yieldRate,
+       Note: Creates FinishedGoodsBatch (copies yieldRate, no grade),
              generates barcode, increments FinishedGoodsInventory.quantityOnHand.
              Does NOT touch RawMaterialInventory — that was already settled by
              /start and /complete above (see FLOW 7 step 3).
@@ -2532,8 +3370,9 @@ async Task<VehicleRunSheet> GenerateRunSheet(UUID vehicleId, UUID vehicleRouteId
     VehicleId = vehicleId,
     VehicleRouteId = vehicleRouteId,
     RunDate = runDate,
-    DriverName = vehicle.DriverName,
-    DriverPhone = vehicle.DriverPhone,
+    DriverUserId = driver.Id,                       // active User with role "driver"
+    DriverName = $"{driver.FirstName} {driver.LastName}",
+    DriverPhone = driver.Phone,
     Status = "Draft",
     CreatedBy = CurrentUserId,
     CreatedDate = DateTime.UtcNow,
@@ -2672,8 +3511,7 @@ Available → Reserved → Sold
 - Vehicle Code must be unique
 - License Plate format: Thai format (e.g., "กข-1234 Bangkok")
 - Capacity must be > 0
-- Driver Name required
-- Driver Phone format: valid Thai phone
+- No driver on the vehicle — driver is chosen per run sheet
 - Vehicle must be Active to assign to routes
 
 // Vehicle Route & Stops
@@ -2690,6 +3528,25 @@ Available → Reserved → Sold
 - Run Date must be valid date
 - Run Date's day-of-week must match VehicleRoute.DaysOfWeek
 - At least 1 stop must have matching POs
+- No limit of one run sheet per vehicle or driver per day
+
+// Delivery Sheet
+- Vehicle active · driverUserId active user with role "driver" · at least 1 stop
+- sheetType direct → customer_order stops only · consignment_route → consignment_visit stops only (never mixed)
+- customer_order stop: order confirmed, not delivered, not on another Draft/Printed sheet
+- consignment_visit stop: active consignment customer, at most once per sheet
+- consignment_route: route active; estimate optional (load entered by hand); Completed also needs returns recorded
+- Draft: everything editable · Printed: only driverUserId · Completed/Cancelled: read only
+- Completed is automatic when every stop is done or failed
+- Cancel only when no stop is done; clears CustomerOrder.deliverySheetId and cancels unsigned visits
+- Several sheets per vehicle/driver per day allowed (info, never blocked)
+
+// Consignment Route & Estimate
+- Route code unique · daysOfWeek at least 1 day · a customer at most once per route · consignment customers only
+- One non-cancelled estimate per (route, deliveryDate); deliveryDate's day must be in route.daysOfWeek
+- estimatedQuantity ≥ 0 · editable until the route's delivery sheet is Printed
+- Shop on another route's estimate the same day → warning only
+- CustomerOrder (platformName, platformOrderRef) unique when set
 
 // Vehicle Run Sheet — Start Receipt (Printed → InProgress)
 - Run Sheet must be in "Printed" status (no-op / rejected otherwise)
@@ -2726,7 +3583,41 @@ Available → Reserved → Sold
 - ProductionOrder can only "complete" from status "InProduction"
 - actualQuantity must be >= 0; yieldRate = actualQuantity / plannedQuantity * 100
 - FinishedGoodsBatch registration requires ProductionOrder.status == "Completed"
-- gradeLevel derived from yieldRate: A (98-100%), B (95-97%), C (<95%)
+- No gradeLevel — LOTs are not graded; a yieldRate below lowYieldPercent only raises a dashboard warning
+
+// System Settings (/admin/settings)
+- Admin only (temporary isAdmin flag until roles are designed)
+- Each value must be a number within its min–max range (see System Settings table)
+- wasteDangerPercent must be greater than wasteWarnPercent
+- Save writes one AuditLog entry per value that actually changed; saving with no change is disabled
+
+// Users & Auth
+- firstName, lastName required
+- phone required, Thai mobile/landline normalized to 10 digits starting with 0, unique across all users (incl. inactive)
+- email optional; valid format when given
+- role required, one of admin | staff | driver | production
+- password min 8 characters
+- 5 consecutive failed logins → locked 15 minutes
+- Cannot deactivate yourself or change your own role
+- At least one active admin must remain
+- Users are never deleted — deactivate instead
+- VehicleRunSheet.driverUserId required, must be an active user with role "driver"
+- DeliverySheet.driverUserId required, must be an active user with role "driver"
+- ConsignmentVisit.driverUserId is copied from its DeliverySheet
+- lineUserId unique — one LINE account per user
+
+// Notifications
+- Notification.dedupeKey unique — the same event never notifies twice
+- NotificationRecipient unique (notificationId, userId); active users only, resolved when the event happens
+- Users read / mark read only their own recipients
+- Resend only when delivery status = failed → new NotificationDelivery with a new retryKey
+- maxAttempts = 3; no retry on bad_request, auth_error, quota_exceeded
+
+// Audit Log
+- No update / delete endpoint; DB role for the app has INSERT + SELECT only on AuditLog
+- Written in the same transaction as the change it records
+- changes never contain passwords, password hashes, LINE secrets or tokens (masked "••••")
+- Retention job deletes entries older than 2 years (the only deletion path)
 ```
 
 ---
@@ -2764,9 +3655,18 @@ Vehicle Management:
 - "Vehicle code is required and must be unique"
 - "License plate format invalid (e.g., กข-1234 Bangkok)"
 - "Capacity must be greater than 0"
-- "Driver name is required"
-- "Driver phone is invalid"
 - "Vehicle not found or inactive"
+
+Users & Auth:
+- "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง"
+- "บัญชีถูกล็อกชั่วคราว ลองใหม่หลัง {lockedUntil} หรือติดต่อผู้ดูแลระบบ"
+- "บัญชีนี้ถูกปิดการใช้งาน ติดต่อผู้ดูแลระบบ"
+- "กรุณาตั้งรหัสผ่านใหม่ก่อนใช้งาน"
+- "เบอร์โทรนี้มีผู้ใช้แล้ว"
+- "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร"
+- "ต้องมีผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 คน"
+- "บัญชี LINE นี้เชื่อมกับผู้ใช้อื่นแล้ว"
+- "ไม่มีสิทธิ์เข้าหน้านี้"
 
 Vehicle Route Management:
 - "Route name is required"
@@ -2815,6 +3715,32 @@ Purchase Order Status (Phase B):
 - "{poNumber} confirmed by {supplierName}"
 - "Cancel purchase order?" / "{poNumber} for {supplierName} ({totalAmount}) will be cancelled. This cannot be undone."
 - "{poNumber} cancelled"
+
+Delivery Sheet:
+- "กรุณาเลือกรถ" / "กรุณาเลือกคนขับ" / "กรุณาเพิ่มจุดส่งอย่างน้อย 1 จุด"
+- "คำสั่งซื้อ {orderNumber} อยู่ในใบส่งของ {deliverySheetNumber} แล้ว"
+- "ร้าน {customerName} อยู่ในใบนี้แล้ว"
+- "รถ {vehicleCode} มีอีก {count} ใบในวันนี้" / "คนขับ {driverName} มีอีก {count} ใบในวันนี้" (info, not an error)
+- "พิมพ์แล้วแก้จุดส่งไม่ได้ เปลี่ยนได้เฉพาะคนขับ"
+- "ยกเลิกไม่ได้ เพราะมีจุดที่ส่งสำเร็จแล้ว"
+- "ยกเลิกใบส่งของ {deliverySheetNumber}?" / "คำสั่งซื้อจะกลับไปรอส่ง และใบเข้าร้านที่ยังไม่เซ็นจะถูกยกเลิก"
+- "บันทึกส่งไม่ได้: {customerName}" (requires a reason)
+- "ใบส่งของสายฝากขายใส่คำสั่งซื้อไม่ได้ — ออกใบส่งตรงแยก"
+- "กรุณาบันทึกของคืนก่อนปิดใบ" / "ส่วนต่าง {productName}: ขึ้นรถ {loaded} ลงร้าน {delivered} คืน {returned}" (warning)
+
+Consignment Route:
+- "กรุณาเลือกวันที่วิ่งอย่างน้อย 1 วัน"
+- "ร้าน {customerName} อยู่ในสายนี้แล้ว"
+
+Consignment Estimate:
+- "สาย {routeCode} มียอดประเมินวันที่ {date} แล้ว ({estimateNumber})"
+- "สาย {routeCode} ไม่วิ่งวัน{dayName}"
+- "ร้าน {customerName} อยู่ในยอดประเมินสาย {otherRouteCode} วันเดียวกันด้วย" (warning)
+- "ยอดประเมินเปลี่ยนหลังสั่งผลิตแล้ว: {productName} ประเมิน {estimated} สั่งผลิต {planned}" (warning)
+- "แก้ไม่ได้ ใบส่งของของสายนี้พิมพ์แล้ว"
+
+Customer Order:
+- "เลขคำสั่งซื้อ {platformOrderRef} จาก {platformName} มีในระบบแล้ว ({orderNumber})"
 
 Data Loading:
 - "Loading sales history..."
@@ -3126,7 +4052,7 @@ FinishedGoodsBatch N --- 1 ProductionOrder
 
 ### Risk 4: Production Yield Variation
 **Risk**: Actual yield < expected yield → FG stock shortfall vs. sales plan.
-**Mitigation**: Track historical yield rates per line/product and feed them back into FLOW 4's feasibility check; QC sampling during production (not just at the end) for early detection; plan FG targets with a safety margin (e.g., 110% of demand) where yield history is volatile.
+**Mitigation**: Dashboard warns on any completed order below `lowYieldPercent` (System Settings, default 95%); track historical yield rates per line/product and feed them back into FLOW 4's feasibility check; QC sampling during production (not just at the end) for early detection; plan FG targets with a safety margin (e.g., 110% of demand) where yield history is volatile.
 
 ---
 
@@ -3138,7 +4064,7 @@ FinishedGoodsBatch N --- 1 ProductionOrder
 |-------|-------|----------------------|
 | **Phase 1** — Procurement & Logistics | Purchase templates, PO grouping by Supplier+Route, Vehicle/Route master data, Run Sheet generation & printing, Receipt recording (FLOW 1-3b) | **Built** (frontend, mock-backed) — see Phase A/B notes throughout this doc; Phase C (PO↔RunSheet FK linkage) still outstanding |
 | **Phase 2** — Production Planning & Manufacturing | AI production planning, production order creation, manufacturing execution, QC & yield tracking, FG inventory (FLOW 4-7) | **Not started** — target design only, this document's new sections |
-| **Phase 3** — Sales & Distribution | Customer order management, FG fulfillment, delivery tracking, driver sales, export shipping (FLOW 8) | **Not started** — not designed in detail yet, placeholder only |
+| **Phase 3** — Sales & Distribution | Consignment routes & estimates, customer orders (email / phone / platform), delivery sheets, export shipping & documents (FLOW 8) | **Mostly built (mock UI)** — orders, email import, phone/platform key-in, visits, store reports, invoices, consignment routes & estimates, delivery sheets; export documents and export purchase-plan logic not built; export details open |
 | **Phase 4** — Analytics & Optimization | Supplier performance dashboard, yield optimization, variance analysis reports, demand forecasting, cost analysis | **Not started** — future enhancement, no design done |
 
 ---

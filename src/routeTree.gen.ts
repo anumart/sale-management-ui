@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UiKitRouteImport } from './routes/ui-kit'
 import { Route as CatalogSectionsRouteImport } from './routes/catalog/_sections'
 import { Route as LogisticsSectionsRouteImport } from './routes/logistics/_sections'
@@ -23,6 +24,9 @@ import { Route as ProductionSectionsLinesRouteImport } from './routes/production
 import { Route as ProductionSectionsPlanningRouteImport } from './routes/production/_sections/planning'
 import { Route as CatalogSectionsFinishedGoodsIndexRouteImport } from './routes/catalog/_sections/finished-goods/index'
 import { Route as CatalogSectionsFinishedGoodsFinishedGoodIdRouteImport } from './routes/catalog/_sections/finished-goods/$finishedGoodId'
+import { Route as LogisticsSectionsDeliverySheetsIndexRouteImport } from './routes/logistics/_sections/delivery-sheets/index'
+import { Route as LogisticsSectionsDeliverySheetsSheetIdRouteImport } from './routes/logistics/_sections/delivery-sheets/$sheetId'
+import { Route as LogisticsSectionsDeliverySheetsNewRouteImport } from './routes/logistics/_sections/delivery-sheets/new'
 import { Route as LogisticsSectionsRoutesIndexRouteImport } from './routes/logistics/_sections/routes/index'
 import { Route as LogisticsSectionsRunSheetsIndexRouteImport } from './routes/logistics/_sections/run-sheets/index'
 import { Route as LogisticsSectionsRunSheetsGenerateRouteImport } from './routes/logistics/_sections/run-sheets/generate'
@@ -35,8 +39,11 @@ import { Route as ProcurementSectionsSuppliersIndexRouteImport } from './routes/
 import { Route as ProcurementSectionsSuppliersSupplierIdRouteImport } from './routes/procurement/_sections/suppliers/$supplierId'
 import { Route as ProductionSectionsOrdersIndexRouteImport } from './routes/production/_sections/orders/index'
 import { Route as ProductionSectionsOrdersOrderIdRouteImport } from './routes/production/_sections/orders/$orderId'
+import { Route as SalesSectionsConsignmentRoutesIndexRouteImport } from './routes/sales/_sections/consignment-routes/index'
 import { Route as SalesSectionsCustomersIndexRouteImport } from './routes/sales/_sections/customers/index'
 import { Route as SalesSectionsCustomersCustomerIdRouteImport } from './routes/sales/_sections/customers/$customerId'
+import { Route as SalesSectionsEstimatesIndexRouteImport } from './routes/sales/_sections/estimates/index'
+import { Route as SalesSectionsEstimatesEstimateIdRouteImport } from './routes/sales/_sections/estimates/$estimateId'
 import { Route as SalesSectionsInvoicesIndexRouteImport } from './routes/sales/_sections/invoices/index'
 import { Route as SalesSectionsInvoicesInvoiceIdRouteImport } from './routes/sales/_sections/invoices/$invoiceId'
 import { Route as SalesSectionsOrdersIndexRouteImport } from './routes/sales/_sections/orders/index'
@@ -54,6 +61,11 @@ import { Route as ProcurementSectionsPlansNewStep2RouteImport } from './routes/p
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UiKitRoute = UiKitRouteImport.update({
@@ -125,6 +137,24 @@ const CatalogSectionsFinishedGoodsFinishedGoodIdRoute =
     id: '/finished-goods/$finishedGoodId',
     path: '/finished-goods/$finishedGoodId',
     getParentRoute: () => CatalogSectionsRoute,
+  } as any)
+const LogisticsSectionsDeliverySheetsIndexRoute =
+  LogisticsSectionsDeliverySheetsIndexRouteImport.update({
+    id: '/delivery-sheets/',
+    path: '/delivery-sheets/',
+    getParentRoute: () => LogisticsSectionsRoute,
+  } as any)
+const LogisticsSectionsDeliverySheetsSheetIdRoute =
+  LogisticsSectionsDeliverySheetsSheetIdRouteImport.update({
+    id: '/delivery-sheets/$sheetId',
+    path: '/delivery-sheets/$sheetId',
+    getParentRoute: () => LogisticsSectionsRoute,
+  } as any)
+const LogisticsSectionsDeliverySheetsNewRoute =
+  LogisticsSectionsDeliverySheetsNewRouteImport.update({
+    id: '/delivery-sheets/new',
+    path: '/delivery-sheets/new',
+    getParentRoute: () => LogisticsSectionsRoute,
   } as any)
 const LogisticsSectionsRoutesIndexRoute =
   LogisticsSectionsRoutesIndexRouteImport.update({
@@ -198,6 +228,12 @@ const ProductionSectionsOrdersOrderIdRoute =
     path: '/orders/$orderId',
     getParentRoute: () => ProductionSectionsRoute,
   } as any)
+const SalesSectionsConsignmentRoutesIndexRoute =
+  SalesSectionsConsignmentRoutesIndexRouteImport.update({
+    id: '/consignment-routes/',
+    path: '/consignment-routes/',
+    getParentRoute: () => SalesSectionsRoute,
+  } as any)
 const SalesSectionsCustomersIndexRoute =
   SalesSectionsCustomersIndexRouteImport.update({
     id: '/customers/',
@@ -208,6 +244,18 @@ const SalesSectionsCustomersCustomerIdRoute =
   SalesSectionsCustomersCustomerIdRouteImport.update({
     id: '/customers/$customerId',
     path: '/customers/$customerId',
+    getParentRoute: () => SalesSectionsRoute,
+  } as any)
+const SalesSectionsEstimatesIndexRoute =
+  SalesSectionsEstimatesIndexRouteImport.update({
+    id: '/estimates/',
+    path: '/estimates/',
+    getParentRoute: () => SalesSectionsRoute,
+  } as any)
+const SalesSectionsEstimatesEstimateIdRoute =
+  SalesSectionsEstimatesEstimateIdRouteImport.update({
+    id: '/estimates/$estimateId',
+    path: '/estimates/$estimateId',
     getParentRoute: () => SalesSectionsRoute,
   } as any)
 const SalesSectionsInvoicesIndexRoute =
@@ -291,6 +339,7 @@ const ProcurementSectionsPlansNewStep2Route =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
   '/ui-kit': typeof UiKitRoute
   '/catalog': typeof CatalogSectionsRouteWithChildren
   '/logistics': typeof LogisticsSectionsRouteWithChildren
@@ -303,17 +352,21 @@ export interface FileRoutesByFullPath {
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
   '/catalog/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
+  '/logistics/delivery-sheets/$sheetId': typeof LogisticsSectionsDeliverySheetsSheetIdRoute
+  '/logistics/delivery-sheets/new': typeof LogisticsSectionsDeliverySheetsNewRoute
   '/logistics/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
   '/procurement/suppliers/$supplierId': typeof ProcurementSectionsSuppliersSupplierIdRoute
   '/production/orders/$orderId': typeof ProductionSectionsOrdersOrderIdRoute
   '/sales/customers/$customerId': typeof SalesSectionsCustomersCustomerIdRoute
+  '/sales/estimates/$estimateId': typeof SalesSectionsEstimatesEstimateIdRoute
   '/sales/invoices/$invoiceId': typeof SalesSectionsInvoicesInvoiceIdRoute
   '/sales/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
   '/catalog/finished-goods/': typeof CatalogSectionsFinishedGoodsIndexRoute
+  '/logistics/delivery-sheets/': typeof LogisticsSectionsDeliverySheetsIndexRoute
   '/logistics/routes/': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/run-sheets/': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/vehicles/': typeof LogisticsSectionsVehiclesIndexRoute
@@ -321,7 +374,9 @@ export interface FileRoutesByFullPath {
   '/procurement/purchase-orders/': typeof ProcurementSectionsPurchaseOrdersIndexRoute
   '/procurement/suppliers/': typeof ProcurementSectionsSuppliersIndexRoute
   '/production/orders/': typeof ProductionSectionsOrdersIndexRoute
+  '/sales/consignment-routes/': typeof SalesSectionsConsignmentRoutesIndexRoute
   '/sales/customers/': typeof SalesSectionsCustomersIndexRoute
+  '/sales/estimates/': typeof SalesSectionsEstimatesIndexRoute
   '/sales/invoices/': typeof SalesSectionsInvoicesIndexRoute
   '/sales/orders/': typeof SalesSectionsOrdersIndexRoute
   '/sales/performance/': typeof SalesSectionsPerformanceIndexRoute
@@ -334,6 +389,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
   '/ui-kit': typeof UiKitRoute
   '/catalog': typeof CatalogSectionsRouteWithChildren
   '/logistics': typeof LogisticsSectionsRouteWithChildren
@@ -346,17 +402,21 @@ export interface FileRoutesByTo {
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
   '/catalog/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
+  '/logistics/delivery-sheets/$sheetId': typeof LogisticsSectionsDeliverySheetsSheetIdRoute
+  '/logistics/delivery-sheets/new': typeof LogisticsSectionsDeliverySheetsNewRoute
   '/logistics/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
   '/procurement/suppliers/$supplierId': typeof ProcurementSectionsSuppliersSupplierIdRoute
   '/production/orders/$orderId': typeof ProductionSectionsOrdersOrderIdRoute
   '/sales/customers/$customerId': typeof SalesSectionsCustomersCustomerIdRoute
+  '/sales/estimates/$estimateId': typeof SalesSectionsEstimatesEstimateIdRoute
   '/sales/invoices/$invoiceId': typeof SalesSectionsInvoicesInvoiceIdRoute
   '/sales/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
   '/catalog/finished-goods': typeof CatalogSectionsFinishedGoodsIndexRoute
+  '/logistics/delivery-sheets': typeof LogisticsSectionsDeliverySheetsIndexRoute
   '/logistics/routes': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/run-sheets': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/vehicles': typeof LogisticsSectionsVehiclesIndexRoute
@@ -364,7 +424,9 @@ export interface FileRoutesByTo {
   '/procurement/purchase-orders': typeof ProcurementSectionsPurchaseOrdersIndexRoute
   '/procurement/suppliers': typeof ProcurementSectionsSuppliersIndexRoute
   '/production/orders': typeof ProductionSectionsOrdersIndexRoute
+  '/sales/consignment-routes': typeof SalesSectionsConsignmentRoutesIndexRoute
   '/sales/customers': typeof SalesSectionsCustomersIndexRoute
+  '/sales/estimates': typeof SalesSectionsEstimatesIndexRoute
   '/sales/invoices': typeof SalesSectionsInvoicesIndexRoute
   '/sales/orders': typeof SalesSectionsOrdersIndexRoute
   '/sales/performance': typeof SalesSectionsPerformanceIndexRoute
@@ -378,6 +440,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
   '/ui-kit': typeof UiKitRoute
   '/catalog/_sections': typeof CatalogSectionsRouteWithChildren
   '/logistics/_sections': typeof LogisticsSectionsRouteWithChildren
@@ -390,17 +453,21 @@ export interface FileRoutesById {
   '/production/_sections/lines': typeof ProductionSectionsLinesRoute
   '/production/_sections/planning': typeof ProductionSectionsPlanningRoute
   '/catalog/_sections/finished-goods/$finishedGoodId': typeof CatalogSectionsFinishedGoodsFinishedGoodIdRoute
+  '/logistics/_sections/delivery-sheets/$sheetId': typeof LogisticsSectionsDeliverySheetsSheetIdRoute
+  '/logistics/_sections/delivery-sheets/new': typeof LogisticsSectionsDeliverySheetsNewRoute
   '/logistics/_sections/run-sheets/generate': typeof LogisticsSectionsRunSheetsGenerateRoute
   '/procurement/_sections/plans/$planId': typeof ProcurementSectionsPlansPlanIdRoute
   '/procurement/_sections/purchase-orders/$poId': typeof ProcurementSectionsPurchaseOrdersPoIdRoute
   '/procurement/_sections/suppliers/$supplierId': typeof ProcurementSectionsSuppliersSupplierIdRoute
   '/production/_sections/orders/$orderId': typeof ProductionSectionsOrdersOrderIdRoute
   '/sales/_sections/customers/$customerId': typeof SalesSectionsCustomersCustomerIdRoute
+  '/sales/_sections/estimates/$estimateId': typeof SalesSectionsEstimatesEstimateIdRoute
   '/sales/_sections/invoices/$invoiceId': typeof SalesSectionsInvoicesInvoiceIdRoute
   '/sales/_sections/orders/$orderId': typeof SalesSectionsOrdersOrderIdRoute
   '/sales/_sections/reports/$reportId': typeof SalesSectionsReportsReportIdRoute
   '/sales/_sections/visits/$visitId': typeof SalesSectionsVisitsVisitIdRoute
   '/catalog/_sections/finished-goods/': typeof CatalogSectionsFinishedGoodsIndexRoute
+  '/logistics/_sections/delivery-sheets/': typeof LogisticsSectionsDeliverySheetsIndexRoute
   '/logistics/_sections/routes/': typeof LogisticsSectionsRoutesIndexRoute
   '/logistics/_sections/run-sheets/': typeof LogisticsSectionsRunSheetsIndexRoute
   '/logistics/_sections/vehicles/': typeof LogisticsSectionsVehiclesIndexRoute
@@ -408,7 +475,9 @@ export interface FileRoutesById {
   '/procurement/_sections/purchase-orders/': typeof ProcurementSectionsPurchaseOrdersIndexRoute
   '/procurement/_sections/suppliers/': typeof ProcurementSectionsSuppliersIndexRoute
   '/production/_sections/orders/': typeof ProductionSectionsOrdersIndexRoute
+  '/sales/_sections/consignment-routes/': typeof SalesSectionsConsignmentRoutesIndexRoute
   '/sales/_sections/customers/': typeof SalesSectionsCustomersIndexRoute
+  '/sales/_sections/estimates/': typeof SalesSectionsEstimatesIndexRoute
   '/sales/_sections/invoices/': typeof SalesSectionsInvoicesIndexRoute
   '/sales/_sections/orders/': typeof SalesSectionsOrdersIndexRoute
   '/sales/_sections/performance/': typeof SalesSectionsPerformanceIndexRoute
@@ -423,6 +492,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/settings'
     | '/ui-kit'
     | '/catalog'
     | '/logistics'
@@ -435,17 +505,21 @@ export interface FileRouteTypes {
     | '/production/lines'
     | '/production/planning'
     | '/catalog/finished-goods/$finishedGoodId'
+    | '/logistics/delivery-sheets/$sheetId'
+    | '/logistics/delivery-sheets/new'
     | '/logistics/run-sheets/generate'
     | '/procurement/plans/$planId'
     | '/procurement/purchase-orders/$poId'
     | '/procurement/suppliers/$supplierId'
     | '/production/orders/$orderId'
     | '/sales/customers/$customerId'
+    | '/sales/estimates/$estimateId'
     | '/sales/invoices/$invoiceId'
     | '/sales/orders/$orderId'
     | '/sales/reports/$reportId'
     | '/sales/visits/$visitId'
     | '/catalog/finished-goods/'
+    | '/logistics/delivery-sheets/'
     | '/logistics/routes/'
     | '/logistics/run-sheets/'
     | '/logistics/vehicles/'
@@ -453,7 +527,9 @@ export interface FileRouteTypes {
     | '/procurement/purchase-orders/'
     | '/procurement/suppliers/'
     | '/production/orders/'
+    | '/sales/consignment-routes/'
     | '/sales/customers/'
+    | '/sales/estimates/'
     | '/sales/invoices/'
     | '/sales/orders/'
     | '/sales/performance/'
@@ -466,6 +542,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/settings'
     | '/ui-kit'
     | '/catalog'
     | '/logistics'
@@ -478,17 +555,21 @@ export interface FileRouteTypes {
     | '/production/lines'
     | '/production/planning'
     | '/catalog/finished-goods/$finishedGoodId'
+    | '/logistics/delivery-sheets/$sheetId'
+    | '/logistics/delivery-sheets/new'
     | '/logistics/run-sheets/generate'
     | '/procurement/plans/$planId'
     | '/procurement/purchase-orders/$poId'
     | '/procurement/suppliers/$supplierId'
     | '/production/orders/$orderId'
     | '/sales/customers/$customerId'
+    | '/sales/estimates/$estimateId'
     | '/sales/invoices/$invoiceId'
     | '/sales/orders/$orderId'
     | '/sales/reports/$reportId'
     | '/sales/visits/$visitId'
     | '/catalog/finished-goods'
+    | '/logistics/delivery-sheets'
     | '/logistics/routes'
     | '/logistics/run-sheets'
     | '/logistics/vehicles'
@@ -496,7 +577,9 @@ export interface FileRouteTypes {
     | '/procurement/purchase-orders'
     | '/procurement/suppliers'
     | '/production/orders'
+    | '/sales/consignment-routes'
     | '/sales/customers'
+    | '/sales/estimates'
     | '/sales/invoices'
     | '/sales/orders'
     | '/sales/performance'
@@ -509,6 +592,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/settings'
     | '/ui-kit'
     | '/catalog/_sections'
     | '/logistics/_sections'
@@ -521,17 +605,21 @@ export interface FileRouteTypes {
     | '/production/_sections/lines'
     | '/production/_sections/planning'
     | '/catalog/_sections/finished-goods/$finishedGoodId'
+    | '/logistics/_sections/delivery-sheets/$sheetId'
+    | '/logistics/_sections/delivery-sheets/new'
     | '/logistics/_sections/run-sheets/generate'
     | '/procurement/_sections/plans/$planId'
     | '/procurement/_sections/purchase-orders/$poId'
     | '/procurement/_sections/suppliers/$supplierId'
     | '/production/_sections/orders/$orderId'
     | '/sales/_sections/customers/$customerId'
+    | '/sales/_sections/estimates/$estimateId'
     | '/sales/_sections/invoices/$invoiceId'
     | '/sales/_sections/orders/$orderId'
     | '/sales/_sections/reports/$reportId'
     | '/sales/_sections/visits/$visitId'
     | '/catalog/_sections/finished-goods/'
+    | '/logistics/_sections/delivery-sheets/'
     | '/logistics/_sections/routes/'
     | '/logistics/_sections/run-sheets/'
     | '/logistics/_sections/vehicles/'
@@ -539,7 +627,9 @@ export interface FileRouteTypes {
     | '/procurement/_sections/purchase-orders/'
     | '/procurement/_sections/suppliers/'
     | '/production/_sections/orders/'
+    | '/sales/_sections/consignment-routes/'
     | '/sales/_sections/customers/'
+    | '/sales/_sections/estimates/'
     | '/sales/_sections/invoices/'
     | '/sales/_sections/orders/'
     | '/sales/_sections/performance/'
@@ -553,6 +643,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SettingsRoute: typeof SettingsRoute
   UiKitRoute: typeof UiKitRoute
   CatalogSectionsRoute: typeof CatalogSectionsRouteWithChildren
   LogisticsSectionsRoute: typeof LogisticsSectionsRouteWithChildren
@@ -568,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ui-kit': {
@@ -661,6 +759,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogSectionsFinishedGoodsFinishedGoodIdRouteImport
       parentRoute: typeof CatalogSectionsRoute
     }
+    '/logistics/_sections/delivery-sheets/': {
+      id: '/logistics/_sections/delivery-sheets/'
+      path: '/delivery-sheets'
+      fullPath: '/logistics/delivery-sheets/'
+      preLoaderRoute: typeof LogisticsSectionsDeliverySheetsIndexRouteImport
+      parentRoute: typeof LogisticsSectionsRoute
+    }
+    '/logistics/_sections/delivery-sheets/$sheetId': {
+      id: '/logistics/_sections/delivery-sheets/$sheetId'
+      path: '/delivery-sheets/$sheetId'
+      fullPath: '/logistics/delivery-sheets/$sheetId'
+      preLoaderRoute: typeof LogisticsSectionsDeliverySheetsSheetIdRouteImport
+      parentRoute: typeof LogisticsSectionsRoute
+    }
+    '/logistics/_sections/delivery-sheets/new': {
+      id: '/logistics/_sections/delivery-sheets/new'
+      path: '/delivery-sheets/new'
+      fullPath: '/logistics/delivery-sheets/new'
+      preLoaderRoute: typeof LogisticsSectionsDeliverySheetsNewRouteImport
+      parentRoute: typeof LogisticsSectionsRoute
+    }
     '/logistics/_sections/routes/': {
       id: '/logistics/_sections/routes/'
       path: '/routes'
@@ -745,6 +864,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductionSectionsOrdersOrderIdRouteImport
       parentRoute: typeof ProductionSectionsRoute
     }
+    '/sales/_sections/consignment-routes/': {
+      id: '/sales/_sections/consignment-routes/'
+      path: '/consignment-routes'
+      fullPath: '/sales/consignment-routes/'
+      preLoaderRoute: typeof SalesSectionsConsignmentRoutesIndexRouteImport
+      parentRoute: typeof SalesSectionsRoute
+    }
     '/sales/_sections/customers/': {
       id: '/sales/_sections/customers/'
       path: '/customers'
@@ -757,6 +883,20 @@ declare module '@tanstack/react-router' {
       path: '/customers/$customerId'
       fullPath: '/sales/customers/$customerId'
       preLoaderRoute: typeof SalesSectionsCustomersCustomerIdRouteImport
+      parentRoute: typeof SalesSectionsRoute
+    }
+    '/sales/_sections/estimates/': {
+      id: '/sales/_sections/estimates/'
+      path: '/estimates'
+      fullPath: '/sales/estimates/'
+      preLoaderRoute: typeof SalesSectionsEstimatesIndexRouteImport
+      parentRoute: typeof SalesSectionsRoute
+    }
+    '/sales/_sections/estimates/$estimateId': {
+      id: '/sales/_sections/estimates/$estimateId'
+      path: '/estimates/$estimateId'
+      fullPath: '/sales/estimates/$estimateId'
+      preLoaderRoute: typeof SalesSectionsEstimatesEstimateIdRouteImport
       parentRoute: typeof SalesSectionsRoute
     }
     '/sales/_sections/invoices/': {
@@ -874,7 +1014,10 @@ const CatalogSectionsRouteWithChildren = CatalogSectionsRoute._addFileChildren(
 )
 
 interface LogisticsSectionsRouteChildren {
+  LogisticsSectionsDeliverySheetsSheetIdRoute: typeof LogisticsSectionsDeliverySheetsSheetIdRoute
+  LogisticsSectionsDeliverySheetsNewRoute: typeof LogisticsSectionsDeliverySheetsNewRoute
   LogisticsSectionsRunSheetsGenerateRoute: typeof LogisticsSectionsRunSheetsGenerateRoute
+  LogisticsSectionsDeliverySheetsIndexRoute: typeof LogisticsSectionsDeliverySheetsIndexRoute
   LogisticsSectionsRoutesIndexRoute: typeof LogisticsSectionsRoutesIndexRoute
   LogisticsSectionsRunSheetsIndexRoute: typeof LogisticsSectionsRunSheetsIndexRoute
   LogisticsSectionsVehiclesIndexRoute: typeof LogisticsSectionsVehiclesIndexRoute
@@ -883,8 +1026,14 @@ interface LogisticsSectionsRouteChildren {
 }
 
 const LogisticsSectionsRouteChildren: LogisticsSectionsRouteChildren = {
+  LogisticsSectionsDeliverySheetsSheetIdRoute:
+    LogisticsSectionsDeliverySheetsSheetIdRoute,
+  LogisticsSectionsDeliverySheetsNewRoute:
+    LogisticsSectionsDeliverySheetsNewRoute,
   LogisticsSectionsRunSheetsGenerateRoute:
     LogisticsSectionsRunSheetsGenerateRoute,
+  LogisticsSectionsDeliverySheetsIndexRoute:
+    LogisticsSectionsDeliverySheetsIndexRoute,
   LogisticsSectionsRoutesIndexRoute: LogisticsSectionsRoutesIndexRoute,
   LogisticsSectionsRunSheetsIndexRoute: LogisticsSectionsRunSheetsIndexRoute,
   LogisticsSectionsVehiclesIndexRoute: LogisticsSectionsVehiclesIndexRoute,
@@ -947,11 +1096,14 @@ const ProductionSectionsRouteWithChildren =
 
 interface SalesSectionsRouteChildren {
   SalesSectionsCustomersCustomerIdRoute: typeof SalesSectionsCustomersCustomerIdRoute
+  SalesSectionsEstimatesEstimateIdRoute: typeof SalesSectionsEstimatesEstimateIdRoute
   SalesSectionsInvoicesInvoiceIdRoute: typeof SalesSectionsInvoicesInvoiceIdRoute
   SalesSectionsOrdersOrderIdRoute: typeof SalesSectionsOrdersOrderIdRoute
   SalesSectionsReportsReportIdRoute: typeof SalesSectionsReportsReportIdRoute
   SalesSectionsVisitsVisitIdRoute: typeof SalesSectionsVisitsVisitIdRoute
+  SalesSectionsConsignmentRoutesIndexRoute: typeof SalesSectionsConsignmentRoutesIndexRoute
   SalesSectionsCustomersIndexRoute: typeof SalesSectionsCustomersIndexRoute
+  SalesSectionsEstimatesIndexRoute: typeof SalesSectionsEstimatesIndexRoute
   SalesSectionsInvoicesIndexRoute: typeof SalesSectionsInvoicesIndexRoute
   SalesSectionsOrdersIndexRoute: typeof SalesSectionsOrdersIndexRoute
   SalesSectionsPerformanceIndexRoute: typeof SalesSectionsPerformanceIndexRoute
@@ -961,11 +1113,15 @@ interface SalesSectionsRouteChildren {
 
 const SalesSectionsRouteChildren: SalesSectionsRouteChildren = {
   SalesSectionsCustomersCustomerIdRoute: SalesSectionsCustomersCustomerIdRoute,
+  SalesSectionsEstimatesEstimateIdRoute: SalesSectionsEstimatesEstimateIdRoute,
   SalesSectionsInvoicesInvoiceIdRoute: SalesSectionsInvoicesInvoiceIdRoute,
   SalesSectionsOrdersOrderIdRoute: SalesSectionsOrdersOrderIdRoute,
   SalesSectionsReportsReportIdRoute: SalesSectionsReportsReportIdRoute,
   SalesSectionsVisitsVisitIdRoute: SalesSectionsVisitsVisitIdRoute,
+  SalesSectionsConsignmentRoutesIndexRoute:
+    SalesSectionsConsignmentRoutesIndexRoute,
   SalesSectionsCustomersIndexRoute: SalesSectionsCustomersIndexRoute,
+  SalesSectionsEstimatesIndexRoute: SalesSectionsEstimatesIndexRoute,
   SalesSectionsInvoicesIndexRoute: SalesSectionsInvoicesIndexRoute,
   SalesSectionsOrdersIndexRoute: SalesSectionsOrdersIndexRoute,
   SalesSectionsPerformanceIndexRoute: SalesSectionsPerformanceIndexRoute,
@@ -979,6 +1135,7 @@ const SalesSectionsRouteWithChildren = SalesSectionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SettingsRoute: SettingsRoute,
   UiKitRoute: UiKitRoute,
   CatalogSectionsRoute: CatalogSectionsRouteWithChildren,
   LogisticsSectionsRoute: LogisticsSectionsRouteWithChildren,

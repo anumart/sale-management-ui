@@ -2,14 +2,26 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconEdit, IconEye, IconPlus, IconPower, IconTrash } from '@/components/icons'
-import { Button, Card, CardHeader, DataTable, StatusPill, type DataTableColumn } from '@/components/ui'
+import { Button, Card, CardHeader, DataTable, FilterSelect, FilterSheet, ListToolbar, MultiSelectList, StatusPill, useFilterSheet, type CriteriaChip, type DataTableColumn } from '@/components/ui'
 import type { FinishedGood } from '@/features/procurement/types'
+import { useListCriteria } from '@/hooks/useListCriteria'
+import { countBy, matchesText, sumCounts } from '@/lib/criteria'
 import { formatCurrency } from '@/lib/format'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { FinishedGoodFormModal } from './FinishedGoodFormModal'
 import { useCatalogStore } from './store'
 import { finishedGoodUsage, categoryPath } from './utils'
+
+interface Criteria {
+  query: string
+  active: 'all' | 'active' | 'inactive'
+  categoryIds: string[]
+  recipe: string[]
+}
+
+const emptyCriteria: Criteria = { query: '', active: 'all', categoryIds: [], recipe: [] }
+const recipeLabel: Record<string, string> = { has: 'มีสูตร', none: 'ยังไม่มีสูตร' }
 
 export function FinishedGoodsCatalogPage() {
   const navigate = useNavigate()
@@ -23,6 +35,35 @@ export function FinishedGoodsCatalogPage() {
 
   const categoryName = (id: string) => categoryPath(categories, id)
   const activeBom = (fgId: string) => bomVersions.find((v) => v.finishedGoodId === fgId && v.status === 'active')
+
+  const { criteria, update, clear, page, setPage } = useListCriteria(emptyCriteria)
+  const sheet = useFilterSheet()
+
+  const needle = criteria.query.trim().toLowerCase()
+  /** `skip` leaves one criterion out so the filter UI can show how many results each of its values would give. */
+  const matches = (f: FinishedGood, skip?: 'active' | 'category' | 'recipe') => {
+    if (skip !== 'active' && criteria.active !== 'all' && f.isActive !== (criteria.active === 'active')) return false
+    if (skip !== 'category' && criteria.categoryIds.length && !criteria.categoryIds.includes(f.categoryId)) return false
+    if (skip !== 'recipe' && criteria.recipe.length && !criteria.recipe.includes(activeBom(f.id) ? 'has' : 'none')) return false
+    return matchesText(needle, f.name, f.sku, categoryName(f.categoryId))
+  }
+  const rows = finishedGoods.filter((f) => matches(f))
+
+  const activeCounts = countBy(finishedGoods.filter((f) => matches(f, 'active')), (f) => (f.isActive ? 'active' : 'inactive'))
+  const categoryCounts = countBy(finishedGoods.filter((f) => matches(f, 'category')), (f) => f.categoryId)
+  const recipeCounts = countBy(finishedGoods.filter((f) => matches(f, 'recipe')), (f) => (activeBom(f.id) ? 'has' : 'none'))
+  const categoryIds = [...new Set(finishedGoods.map((f) => f.categoryId))]
+
+  const chips: CriteriaChip[] = [
+    ...criteria.categoryIds.map((id) => ({
+      key: `c-${id}`,
+      label: 'หมวดหมู่',
+      value: categoryName(id),
+      onRemove: () => update({ categoryIds: criteria.categoryIds.filter((x) => x !== id) }),
+    })),
+    ...criteria.recipe.map((v) => ({ key: `r-${v}`, label: 'สูตร', value: recipeLabel[v], onRemove: () => update({ recipe: criteria.recipe.filter((x) => x !== v) }) })),
+  ]
+  const hasAnyCriteria = chips.length > 0 || !!criteria.query || criteria.active !== 'all'
 
   const openForm = (product?: FinishedGood) => {
     setEditing(product)
@@ -105,13 +146,43 @@ export function FinishedGoodsCatalogPage() {
             </Button>
           }
         />
+        <ListToolbar
+          searchLabel="ค้นหาสินค้า"
+          searchPlaceholder="ค้นหาชื่อสินค้า, รหัส, หมวดหมู่"
+          query={criteria.query}
+          onQueryChange={(query) => update({ query })}
+          filters={
+            <FilterSelect
+              label="สถานะ"
+              value={criteria.active}
+              neutralValue="all"
+              onChange={(active) => update({ active })}
+              options={[
+                { value: 'all', label: 'ทั้งหมด', count: sumCounts(activeCounts) },
+                { value: 'active', label: 'ใช้งาน', tone: 'success', count: activeCounts.get('active') ?? 0 },
+                { value: 'inactive', label: 'ปิดใช้งาน', tone: 'neutral', count: activeCounts.get('inactive') ?? 0 },
+              ]}
+              className="w-full sm:w-64"
+            />
+          }
+          sheetCount={criteria.categoryIds.length + criteria.recipe.length}
+          onOpenSheet={sheet.openSheet}
+          chips={chips}
+          resultText={`พบ ${rows.length} จาก ${finishedGoods.length} รายการ`}
+          hasCriteria={hasAnyCriteria}
+          onClear={clear}
+        />
+
         <DataTable
           columns={columns}
-          rows={finishedGoods}
+          rows={rows}
           rowKey={(f) => f.id}
           pageSize={10}
-          emptyTitle="ยังไม่มีสินค้าสำเร็จรูป"
-          emptyDescription="เพิ่มสินค้าเพื่อเริ่มต้น"
+          page={page}
+          onPageChange={setPage}
+          paginationVariant="jump"
+          emptyTitle="ไม่พบสินค้าสำเร็จรูป"
+          emptyDescription={hasAnyCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : 'เพิ่มสินค้าเพื่อเริ่มต้น'}
           renderActions={(f) => (
             <>
               <Button
@@ -146,6 +217,27 @@ export function FinishedGoodsCatalogPage() {
           )}
         />
       </Card>
+
+      <FilterSheet
+        open={sheet.open}
+        onClose={sheet.closeSheet}
+        title="ตัวกรองสินค้าสำเร็จรูป"
+        resultCount={rows.length}
+        onClear={() => update({ categoryIds: [], recipe: [] })}
+      >
+        <MultiSelectList
+          label="หมวดหมู่"
+          options={categoryIds.map((id) => ({ value: id, label: categoryName(id), count: categoryCounts.get(id) ?? 0 }))}
+          value={criteria.categoryIds}
+          onChange={(ids) => update({ categoryIds: ids })}
+        />
+        <MultiSelectList
+          label="สูตร (BOM)"
+          options={Object.keys(recipeLabel).map((v) => ({ value: v, label: recipeLabel[v], count: recipeCounts.get(v) ?? 0 }))}
+          value={criteria.recipe}
+          onChange={(recipe) => update({ recipe })}
+        />
+      </FilterSheet>
       <FinishedGoodFormModal open={formOpen} onClose={() => setFormOpen(false)} product={editing} />
     </>
   )

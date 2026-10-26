@@ -8,8 +8,9 @@ import { finishedGoodById, rawMaterialById, salesHistory } from '@/features/proc
 import { createProductionForOrder, describeFailures } from '@/features/sales/actions'
 import { customerById, useSalesStore } from '@/features/sales/store'
 import type { CustomerOrder } from '@/features/sales/types'
-import { formatDate, orderStage } from '@/features/sales/utils'
+import { channelLabel, channelTone, formatDate, orderStage } from '@/features/sales/utils'
 import { toast } from '@/stores/toastStore'
+import { DeliveryDayDemand } from './DeliveryDayDemand'
 import { useProductionStore } from './store'
 import type { RawMaterialStock } from './types'
 import { fgPosition, rmRequirementFor, rmShortages, roundQty } from './utils'
@@ -67,7 +68,17 @@ function CustomerOrderQueue() {
 
   const columns: DataTableColumn<CustomerOrder>[] = [
     { key: 'number', label: 'เลขที่', sortValue: (o) => o.orderNumber, render: (o) => <span className="font-medium">{o.orderNumber}</span> },
-    { key: 'customer', label: 'ลูกค้า', sortValue: (o) => customerById(o.customerId)?.name ?? '', render: (o) => customerById(o.customerId)?.name },
+    {
+      key: 'customer',
+      label: 'ลูกค้า',
+      sortValue: (o) => customerById(o.customerId)?.name ?? '',
+      render: (o) => (
+        <span className="flex flex-wrap items-center gap-2">
+          {customerById(o.customerId)?.name}
+          <StatusPill tone={channelTone[o.channel]}>{channelLabel[o.channel]}</StatusPill>
+        </span>
+      ),
+    },
     { key: 'deliver', label: 'ส่งภายใน', sortValue: (o) => o.requestedDeliveryDate, render: (o) => formatDate(o.requestedDeliveryDate) },
     {
       key: 'products',
@@ -94,7 +105,7 @@ function CustomerOrderQueue() {
 
   return (
     <Card className="mb-6">
-      <CardHeader title="คำสั่งซื้อที่ต้องผลิต" subtitle="โจทย์ 1 — ผลิตให้ลูกค้ารายนั้น LOT ที่ผลิตเสร็จจะถูกจองไว้ให้คำสั่งซื้อ" />
+      <CardHeader title="คำสั่งซื้อที่ต้องผลิต" subtitle="ผลิตให้ลูกค้ารายนั้น (อีเมล โทร หรือ platform) LOT ที่ผลิตเสร็จจะถูกจองไว้ให้คำสั่งซื้อ" />
       <DataTable
         columns={columns}
         rows={queue}
@@ -151,15 +162,15 @@ function ManualProductionForm() {
 
   return (
     <Card>
-      <CardHeader title="พนักงานเลือกผลิตเอง" subtitle="โจทย์ 2 — เลือกจากประวัติการขาย ผลิตเข้าสต็อกหรือให้ร้านฝากขาย โดยไม่มีคำสั่งซื้อจากลูกค้า" />
+      <CardHeader title="พนักงานเลือกผลิตเอง" subtitle="เลือกจากประวัติการขาย ผลิตเข้าสต็อกหรือให้ร้านฝากขาย โดยไม่มีคำสั่งซื้อจากลูกค้า" />
       <div className="grid gap-x-4 sm:grid-cols-3">
-        <Select label="สินค้า" placeholder="เลือกสินค้า" value={finishedGoodId} onChange={(e) => setFinishedGoodId(e.target.value)} options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))} />
+        <Select label="สินค้า" placeholder="เลือกสินค้า" value={finishedGoodId} onChange={setFinishedGoodId} options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))} />
         <TextField label="จำนวน" type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         <Select
           label="สำหรับร้าน (ไม่บังคับ)"
           placeholder="เข้าสต็อก ยังไม่ระบุร้าน"
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          onChange={setCustomerId}
           options={customers.filter((c) => c.type === 'consignment').map((c) => ({ value: c.id, label: c.name }))}
         />
       </div>
@@ -225,7 +236,7 @@ export function PlanningPage() {
 
   return (
     <>
-      <PageHeading section="ผลิต" title="วางแผนผลิต" subtitle="สิ่งที่จะผลิตมาจากคำสั่งซื้อที่ยืนยันแล้ว หรือจากพนักงานเลือกตามประวัติการขาย" />
+      <PageHeading section="ผลิต" title="วางแผนผลิต" subtitle="สิ่งที่จะผลิตมาจากยอดประเมินของสายฝากขาย คำสั่งซื้อที่ยืนยันแล้ว หรือจากพนักงานเลือกตามประวัติการขาย" />
 
       {toConfirm > 0 && (
         <Alert
@@ -242,6 +253,7 @@ export function PlanningPage() {
         </Alert>
       )}
 
+      <DeliveryDayDemand />
       <StockTable />
       <CustomerOrderQueue />
       <ManualProductionForm />

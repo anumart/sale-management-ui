@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { IconChart } from '@/components/icons'
-import { Button, Modal, Select, TextField } from '@/components/ui'
+import { Button, DatePicker, Modal, Select, TextField } from '@/components/ui'
 import { getFinishedGoods } from '@/features/catalog/store'
 import { toast } from '@/stores/toastStore'
 import { useSalesStore } from './store'
@@ -81,12 +81,12 @@ export function NewSalesReportModal({ open, onClose, customerId: presetCustomerI
         required
         placeholder="เลือกร้านฝากขาย"
         value={customerId}
-        onChange={(e) => setCustomerId(e.target.value)}
+        onChange={setCustomerId}
         options={customers.filter((c) => c.type === 'consignment').map((c) => ({ value: c.id, label: c.name }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="ตั้งแต่" type="date" required value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
-        <TextField label="ถึง" type="date" required value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
+        <DatePicker label="ตั้งแต่" required value={periodFrom} max={periodTo || undefined} onChange={setPeriodFrom} />
+        <DatePicker label="ถึง" required value={periodTo} min={periodFrom || undefined} onChange={setPeriodTo} />
       </div>
       <p className="mb-2 text-control font-medium text-ink-2">จำนวนที่ขายได้</p>
       <div className="grid gap-x-4 sm:grid-cols-2">

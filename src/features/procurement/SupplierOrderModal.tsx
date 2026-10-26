@@ -67,9 +67,7 @@ export function SupplierOrderModal({ open, onClose, planId, rawMaterialId }: Sup
                       value={line?.callStatus ?? 'not_called'}
                       disabled={locked}
                       options={callStatusOptions}
-                      onChange={(e) =>
-                        updateSupplierLine(planId, rawMaterialId, offer.supplierId, { callStatus: e.target.value as CallStatus })
-                      }
+                      onChange={(callStatus) => updateSupplierLine(planId, rawMaterialId, offer.supplierId, { callStatus })}
                       containerClassName="mb-0 w-44"
                     />
                   </td>

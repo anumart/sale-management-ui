@@ -1,11 +1,19 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { IconEye } from '@/components/icons'
-import { Button, Card, CardHeader, DataTable, SegmentedControl, StatusPill, type DataTableColumn } from '@/components/ui'
+import { Button, Card, CardHeader, DataTable, FilterSelect, ListToolbar, StatusPill, type DataTableColumn } from '@/components/ui'
+import { useListCriteria } from '@/hooks/useListCriteria'
+import { countBy, matchesText, sumCounts } from '@/lib/criteria'
 import { useSalesStore } from './store'
 import type { Customer, CustomerType } from './types'
 import { customerTypeLabel, customerTypeTone, formatBaht, invoiceTotal } from './utils'
+
+interface Criteria {
+  query: string
+  type: CustomerType | 'all'
+}
+
+const emptyCriteria: Criteria = { query: '', type: 'all' }
 
 export function CustomersPage() {
   const navigate = useNavigate()
@@ -13,9 +21,15 @@ export function CustomersPage() {
   const shopStock = useSalesStore((s) => s.shopStock)
   const orders = useSalesStore((s) => s.orders)
   const invoices = useSalesStore((s) => s.invoices)
-  const [type, setType] = useState<CustomerType | 'all'>('all')
+  const { criteria, update, clear, page, setPage } = useListCriteria(emptyCriteria)
 
-  const rows = customers.filter((c) => type === 'all' || c.type === type)
+  const needle = criteria.query.trim().toLowerCase()
+  const rows = customers.filter(
+    (c) => (criteria.type === 'all' || c.type === criteria.type) && matchesText(needle, c.code, c.name, c.contactPerson, c.phone, c.email),
+  )
+  // Type counts ignore the type filter itself so each option shows what picking it would give.
+  const typeCounts = countBy(customers.filter((c) => matchesText(needle, c.code, c.name, c.contactPerson, c.phone, c.email)), (c) => c.type)
+  const hasCriteria = !!criteria.query || criteria.type !== 'all'
   const atShop = (c: Customer) => shopStock.filter((s) => s.customerId === c.id).reduce((sum, s) => sum + s.quantity, 0)
   const openOrders = (c: Customer) => orders.filter((o) => o.customerId === c.id && (o.status === 'draft' || o.status === 'confirmed')).length
   const unpaid = (c: Customer) => invoices.filter((i) => i.customerId === c.id && i.status === 'issued').reduce((sum, i) => sum + invoiceTotal(i), 0)
@@ -28,7 +42,10 @@ export function CustomersPage() {
       sortValue: (c) => c.name.toLowerCase(),
       render: (c) => (
         <div>
-          <p className="font-medium">{c.name}</p>
+          <p className="flex flex-wrap items-center gap-2 font-medium">
+            {c.name}
+            {c.country && <StatusPill tone="accent">ส่งออก · {c.country}</StatusPill>}
+          </p>
           <p className="text-sm text-muted">{c.contactPerson}</p>
         </div>
       ),
@@ -50,26 +67,43 @@ export function CustomersPage() {
       <Card>
         <CardHeader
           title="ลูกค้าทั้งหมด"
-          action={
-            <SegmentedControl
-              variant="mask"
-              aria-label="กรองตามประเภท"
-              value={type}
-              onChange={setType}
+        />
+
+        <ListToolbar
+          searchLabel="ค้นหาลูกค้า"
+          searchPlaceholder="ค้นหารหัส, ชื่อ, ผู้ติดต่อ, โทรศัพท์, อีเมล"
+          query={criteria.query}
+          onQueryChange={(query) => update({ query })}
+          filters={
+            <FilterSelect
+              label="ประเภท"
+              value={criteria.type}
+              neutralValue="all"
+              onChange={(type) => update({ type })}
               options={[
-                { value: 'all', label: 'ทั้งหมด' },
-                { value: 'direct', label: 'ขายขาด' },
-                { value: 'consignment', label: 'ฝากขาย' },
+                { value: 'all', label: 'ทั้งหมด', count: sumCounts(typeCounts) },
+                { value: 'direct', label: customerTypeLabel.direct, tone: customerTypeTone.direct, count: typeCounts.get('direct') ?? 0 },
+                { value: 'consignment', label: customerTypeLabel.consignment, tone: customerTypeTone.consignment, count: typeCounts.get('consignment') ?? 0 },
               ]}
+              className="w-full sm:w-64"
             />
           }
+          resultText={`พบ ${rows.length} จาก ${customers.length} ราย`}
+          hasCriteria={hasCriteria}
+          onClear={clear}
         />
+
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
           defaultSort={{ key: 'code', dir: 'asc' }}
-          emptyTitle="ไม่มีลูกค้าในมุมมองนี้"
+          pageSize={10}
+          page={page}
+          onPageChange={setPage}
+          paginationVariant="jump"
+          emptyTitle="ไม่พบลูกค้า"
+          emptyDescription={hasCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : undefined}
           renderActions={(c) => (
             <Button size="sm" variant="soft" iconOnly outlined aria-label="ดู" tooltip="ดู" onClick={() => navigate({ to: '/sales/customers/$customerId', params: { customerId: c.id } })}>
               <IconEye />
