@@ -73,8 +73,8 @@ export function RawMaterialFormModal({ open, onClose, material }: RawMaterialFor
   }, [open, material])
 
   // Picking a family pre-fills the shared fields (only where the SKU form is still empty)
-  const handleFamilyChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const family = families.find((f) => f.id === e.target.value)
+  const handleFamilyChange = (familyId: string) => {
+    const family = families.find((f) => f.id === familyId)
     setForm((f) =>
       family
         ? {
@@ -94,8 +94,9 @@ export function RawMaterialFormModal({ open, onClose, material }: RawMaterialFor
     ...families.filter((f) => f.isActive || f.id === material?.familyId).map((f) => ({ value: f.id, label: `${f.nameTh} (${f.code})` })),
   ]
 
-  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
+  const setValue = (key: keyof typeof emptyForm) => (value: string) => setForm((f) => ({ ...f, [key]: value }))
 
   const handleSave = () => {
     const sku = form.sku.trim()
@@ -161,7 +162,7 @@ export function RawMaterialFormModal({ open, onClose, material }: RawMaterialFor
       <div className="grid gap-4 sm:grid-cols-2">
         <Select label="ตระกูล" value={form.familyId} onChange={handleFamilyChange} options={familyOptions} containerClassName="sm:col-span-2" />
         <TextField label="รหัสวัตถุดิบ (SKU)" required placeholder="RM-FL-005" value={form.sku} onChange={set('sku')} error={errors.sku} />
-        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={set('categoryId')} options={categoryOptions} error={errors.categoryId} />
+        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={setValue('categoryId')} options={categoryOptions} error={errors.categoryId} />
         <TextField label="ชื่อวัตถุดิบ (ไทย)" required placeholder="กุหลาบชมพู (ก้าน)" value={form.nameTh} onChange={set('nameTh')} error={errors.nameTh} />
         <TextField label="ชื่อวัตถุดิบ (อังกฤษ)" placeholder="Pink Rose" value={form.nameEn} onChange={set('nameEn')} />
         <TextField label="ชื่อที่ลูกค้าเรียก" placeholder="กุหลาบชมพูก้านยาว" value={form.customerName} onChange={set('customerName')} hint="ใช้ค้นหาและแสดงในเอกสารที่ส่งให้ลูกค้า" containerClassName="sm:col-span-2" />
@@ -175,7 +176,7 @@ export function RawMaterialFormModal({ open, onClose, material }: RawMaterialFor
         <Select
           label="ขายตรงได้"
           value={form.isSellable}
-          onChange={set('isSellable')}
+          onChange={setValue('isSellable')}
           options={[
             { value: 'no', label: 'ไม่ขาย (ใช้เป็นวัตถุดิบเท่านั้น)' },
             { value: 'yes', label: 'ขายได้ (ตัดสต็อกตรง ไม่ผ่านใบสั่งผลิต)' },

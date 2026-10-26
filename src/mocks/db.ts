@@ -13,6 +13,7 @@ export const me: User = {
   name: 'สมชาย ใจดี',
   email: 'john.carter@gmail.com',
   role: 'ผู้จัดการฝ่ายขาย',
+  isAdmin: true,
   avatarUrl: 'https://randomuser.me/api/portraits/men/22.jpg',
 }
 

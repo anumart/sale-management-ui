@@ -13,8 +13,9 @@ import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { createProductionForOrder, describeFailures } from './actions'
 import { productPrices } from './mockData'
+import { useDeliveryStore } from '@/features/logistics/deliveryStore'
 import { useCustomer, useSalesStore } from './store'
-import { formatBaht, formatDate, orderLineProgress, orderStage, orderStageLabel, orderStageTone } from './utils'
+import { channelLabel, channelTone, EXPORT_DROP_POINT, formatBaht, formatDate, isExportCustomer, orderLineProgress, orderStage, orderStageLabel, orderStageTone } from './utils'
 
 const cellFirst = 'rounded-l-[0.875rem] border-y border-l border-line px-3.5 py-3'
 const cell = 'border-y border-line px-3.5 py-3'
@@ -34,6 +35,7 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
   const order = useSalesStore((s) => s.orders.find((o) => o.id === orderId))
   const imports = useSalesStore((s) => s.imports)
   const customer = useCustomer(order?.customerId)
+  const sheet = useDeliveryStore((s) => s.sheets.find((x) => x.id === order?.deliverySheetId))
   const productionOrders = useProductionStore((s) => s.orders)
   const batches = useProductionStore((s) => s.batches)
   const plans = useProcurementStore((s) => s.plans)
@@ -141,7 +143,25 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
           </Field>
           <Field label="รับเมื่อ">{formatDateTime(order.receivedAt)}</Field>
           <Field label="ส่งภายใน">{formatDate(order.requestedDeliveryDate)}</Field>
-          <Field label="ที่มา">{imp ? imp.attachmentName : 'กรอกเอง'}</Field>
+          <Field label="ช่องทาง">
+            <span className="flex flex-wrap items-center gap-2">
+              <StatusPill tone={channelTone[order.channel]}>{channelLabel[order.channel]}</StatusPill>
+              {imp && <span className="text-sm font-normal text-muted">{imp.attachmentName}</span>}
+            </span>
+          </Field>
+          {order.channel === 'platform' && (
+            <Field label="Platform">
+              {order.platformName} · <span className="tabular-nums">{order.platformOrderRef}</span>
+            </Field>
+          )}
+          {customer?.country && <Field label="ผู้ซื้อต่างประเทศ">{customer.nameEn} · {customer.country}</Field>}
+          {sheet && (
+            <Field label="ใบส่งของ (เที่ยวรถ)">
+              <Link to="/logistics/delivery-sheets/$sheetId" params={{ sheetId: sheet.id }} className="text-primary-fg hover:underline">
+                {sheet.sheetNumber}
+              </Link>
+            </Field>
+          )}
           <Field label="ยืนยันเมื่อ">{order.confirmedAt ? formatDateTime(order.confirmedAt) : '—'}</Field>
           <Field label="แผนจัดซื้อ">
             {plan ? (
@@ -208,7 +228,7 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
                         aria-label="สินค้า"
                         placeholder="เลือกสินค้า"
                         value={l.finishedGoodId ?? ''}
-                        onChange={(e) => updateOrderLine(order.id, l.id, { finishedGoodId: e.target.value || null })}
+                        onChange={(finishedGoodId) => updateOrderLine(order.id, l.id, { finishedGoodId: finishedGoodId || null })}
                         options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))}
                         containerClassName="mb-0 min-w-56"
                       />
@@ -326,7 +346,7 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
         <Card className="mb-6 print:shadow-none">
           <CardHeader
             title="ใบส่งของ"
-            subtitle={order.status === 'delivered' ? `ส่งเมื่อ ${formatDateTime(order.deliveredAt!)}` : `ส่งที่ ${customer?.address}`}
+            subtitle={order.status === 'delivered' ? `ส่งเมื่อ ${formatDateTime(order.deliveredAt!)}` : `ส่งที่ ${isExportCustomer(customer) ? EXPORT_DROP_POINT : customer?.address}`}
             action={
               <div className="flex gap-2 print:hidden">
                 <Button size="sm" variant="outline" onClick={() => window.print()}>

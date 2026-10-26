@@ -106,7 +106,7 @@ export function AddPropertyForm({ compact, onSuccess, onCancel }: AddPropertyFor
         placeholder="เลือกประเภท"
         options={PROPERTY_TYPES.map((t) => ({ value: t, label: t }))}
         value={values.type}
-        onChange={(e) => set('type', e.target.value as PropertyType)}
+        onChange={(type) => set('type', type)}
         error={errors.type}
       />
       <TextField

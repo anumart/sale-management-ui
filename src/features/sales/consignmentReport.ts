@@ -6,12 +6,6 @@ import type { ConsignmentVisit, ConsignmentWeek, Customer, SalesReport } from '.
  * sell-through = sold ÷ delivered, waste rate = spoiled ÷ delivered.
  */
 
-/** Branches that received fewer units than this aren't ranked on waste rate — a tiny denominator turns a few spoiled units into 1000% */
-export const MIN_DELIVERED_FOR_RATE = 100
-/** Waste rate (%) at which a row is tinted warning / danger */
-export const WASTE_WARN = 10
-export const WASTE_DANGER = 15
-
 const cellKey = (weekStart: string, customerId: string, finishedGoodId: string) => `${weekStart}|${customerId}|${finishedGoodId}`
 
 /**

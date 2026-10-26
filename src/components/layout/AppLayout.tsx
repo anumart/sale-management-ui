@@ -1,5 +1,6 @@
 import { Outlet, useMatches } from '@tanstack/react-router'
 import { ConfirmHost, Toaster } from '@/components/ui'
+import { AppBackground } from './AppBackground'
 import { RouteProgressBar } from './RouteProgressBar'
 import { Sidebar } from './Sidebar'
 
@@ -14,6 +15,7 @@ export function AppLayout() {
   const pageKey = useMatches({ select: (matches) => matches[1]?.id ?? '' })
   return (
     <div className="mx-auto grid max-w-[1920px] grid-cols-1 gap-x-10 px-5 pt-7 pb-36 sm:px-8 xl:grid-cols-[calc(var(--mk)*106)_minmax(0,1fr)] xl:gap-x-[calc(var(--mk)*58)] xl:pt-[calc(var(--mk)*36)] xl:pr-[calc(var(--mk)*52)] xl:pb-[calc(var(--mk)*28)] xl:pl-[calc(var(--mk)*47)]">
+      <AppBackground />
       <RouteProgressBar />
       <Sidebar />
       <main className="min-w-0">

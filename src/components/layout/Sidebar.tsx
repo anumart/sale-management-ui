@@ -1,6 +1,7 @@
 import { Link, useLocation } from '@tanstack/react-router'
 import { type PointerEvent, type ReactNode, useRef } from 'react'
-import { IconBox, IconCart, IconDashboard, IconEdit, IconFactory, IconMoneyBag, IconTruck } from '@/components/icons'
+import { IconBox, IconCart, IconDashboard, IconEdit, IconFactory, IconMoneyBag, IconSettings, IconTruck } from '@/components/icons'
+import { useMe } from '@/features/auth/api'
 import { ProfileMenu } from '@/features/auth/components/ProfileMenu'
 import { cn } from '@/lib/cn'
 
@@ -21,10 +22,9 @@ const mainNav: NavItem[] = [
   { to: '/catalog/finished-goods', label: 'ข้อมูลหลัก', icon: <IconBox />, activeMatch: '/catalog' },
 ]
 
-const secondaryNav: NavItem[] = [
-  // Component showcase for developers — kept out of the production menu (the route still exists)
-  ...(import.meta.env.DEV ? [{ to: '/ui-kit', label: 'UI Kit', icon: <IconEdit /> }] : []),
-]
+const settingsNav: NavItem = { to: '/settings', label: 'ตั้งค่าระบบ', icon: <IconSettings /> }
+// Component showcase for developers — kept out of the production menu (the route still exists)
+const devNav: NavItem[] = import.meta.env.DEV ? [{ to: '/ui-kit', label: 'UI Kit', icon: <IconEdit /> }] : []
 
 /** Peak magnification of the item under the cursor, and how far (in item sizes) the effect reaches. */
 const DOCK_MAX_SCALE = 1.6
@@ -136,6 +136,8 @@ function NavButton({ item }: { item: NavItem }) {
  */
 export function Sidebar() {
   const dock = useDockMagnify()
+  const { data: me } = useMe()
+  const secondaryNav = [...(me?.isAdmin ? [settingsNav] : []), ...devNav]
   return (
     <aside
       className={

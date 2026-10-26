@@ -14,8 +14,7 @@ import {
   IconReceipt,
   type IconProps,
 } from '@/components/icons'
-import { Button, Card, CardHeader, StatusPill } from '@/components/ui'
-import { cn } from '@/lib/cn'
+import { Button, Card, CardHeader, StageTracker, StatusPill } from '@/components/ui'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { rawMaterialById } from './mockData'
 import { planById, supplierById, useProcurementStore } from './store'
@@ -40,29 +39,7 @@ function PoStepper({ status }: { status: PoStatus }) {
   const currentIndex = stages.findIndex((s) => s.key === status)
   return (
     <Card className="mb-6">
-      <div className="flex items-start">
-        {stages.map((stage, i) => {
-          const Icon = stage.icon
-          const done = i < currentIndex
-          const current = i === currentIndex
-          return (
-            <div key={stage.key} className="relative flex flex-1 flex-col items-center gap-2 text-center">
-              {i > 0 && <span className={cn('absolute top-[1.15rem] right-1/2 h-0.5 w-full', i <= currentIndex ? 'grad-primary' : 'bg-line')} />}
-              <span
-                className={cn(
-                  'relative z-10 grid size-9 place-items-center rounded-full border-2 text-sm font-semibold [&>svg]:size-[1.05rem]',
-                  done && 'border-primary grad-primary text-on-primary',
-                  current && 'animate-pulse-ring border-primary bg-surface text-primary-fg',
-                  !done && !current && 'border-fill bg-fill text-muted',
-                )}
-              >
-                {done ? <IconCheck /> : current ? <Icon /> : i + 1}
-              </span>
-              <span className={cn('text-sm font-medium', done || current ? 'text-ink' : 'text-muted')}>{stage.label}</span>
-            </div>
-          )
-        })}
-      </div>
+      <StageTracker stages={stages} current={currentIndex} />
     </Card>
   )
 }

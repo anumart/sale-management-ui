@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { IconMapPin } from '@/components/icons'
-import { Button, Modal, Select, TextField } from '@/components/ui'
+import { Button, DatePicker, Modal, Select, TextField } from '@/components/ui'
 import { toast } from '@/stores/toastStore'
 import { useSalesStore } from './store'
 import { fromDateInput, toDateInput } from './utils'
@@ -62,11 +62,11 @@ export function NewVisitModal({ open, onClose, customerId: presetCustomerId }: N
         required
         placeholder="เลือกร้านฝากขาย"
         value={customerId}
-        onChange={(e) => setCustomerId(e.target.value)}
+        onChange={setCustomerId}
         options={customers.filter((c) => c.type === 'consignment' && c.isActive).map((c) => ({ value: c.id, label: c.name }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="วันที่เข้าร้าน" type="date" required value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+        <DatePicker label="วันที่เข้าร้าน" required value={visitDate} onChange={setVisitDate} />
         <TextField label="คนขับ" required placeholder="เช่น สมชาย ร." value={driverName} onChange={(e) => setDriverName(e.target.value)} />
       </div>
     </Modal>

@@ -12,6 +12,9 @@ export const formatCompactCurrency = (value: number) =>
 export const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('th-TH', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 
+export const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
+
 /** "5 min ago", "2 hours ago", "Yesterday" ... */
 export function formatRelative(iso: string, now = Date.now()) {
   const minutes = Math.round((now - new Date(iso).getTime()) / 60000)

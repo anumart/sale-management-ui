@@ -233,7 +233,7 @@
     /* Base size: every rem-based utility scales from this (16px -> 14px). */
     font-size: 87.5%;
     /*
-     * "Sunrise" page background behind the glass surfaces: peach -> rose -> violet at 120deg.
+     * Fallback gradient (peach -> rose -> violet at 120deg) shown until the photo from AppBackground loads.
      * Fixed so it doesn't scroll with content; --color-bg is the fallback.
      */
     background: var(--page-gradient) var(--color-bg);
@@ -317,45 +317,76 @@
 }
 
 /*
- * User appearance (AppearanceMenu in the Topbar, stores/appearanceStore.ts). Sunrise + Frosted are the defaults above.
+ * User appearance (AppearanceMenu in the Topbar, stores/appearanceStore.ts). Floral + Frosted are the defaults.
  * Unlayered on purpose: these must beat the @theme / @layer base values for the same variables.
  */
-/* Backgrounds: gradient + the plum/teal/indigo tint that ink, lines and heading are derived from, + the smoke-glass base color. */
-html[data-bg='aurora'] {
-  --page-gradient: linear-gradient(90deg, #3e9bff 0%, #eba6dc 50%, #aff1d0 100%);
+/* Backgrounds: photo + the tint that ink, lines and heading are derived from, + the smoke-glass base color. */
+/* Photo background (painted by AppBackground over the gradient): flower meadow at sunrise (the default). Light sky, so ink/heading stay dark. */
+html[data-bg='floral'] {
+  --page-gradient: linear-gradient(180deg, #8fbcf5 0%, #f7c6d9 60%, #f3a9c4 100%);
+  --page-image: url('/images/flower-meadow-background.webp');
+  --page-image-position: center center;
+  --page-veil: rgb(255 255 255 / 0.2);
+  --tint: 50 30 70;
+  --smoke: 50 36 80;
+  --smoke-a: 0.42;
+  --smoke-surface: #3a2d5c;
+}
+/* Photo background: misty highland valley at dusk. Mid-tone sky with dark purple clouds, so the page heading goes light like Midnight. */
+html[data-bg='highland'] {
+  --page-gradient: linear-gradient(180deg, #8a8fe0 0%, #e9a0c8 50%, #4f8f4a 100%);
+  --page-image: url('/images/highland-dusk-background.webp');
+  --page-image-position: center center;
   --tint: 26 10 46;
   --smoke: 20 12 50;
   --smoke-a: 0.42;
   --smoke-surface: #2a2150;
-}
-html[data-bg='lagoon'] {
-  --page-gradient: linear-gradient(100deg, #55c2ff 0%, #35d6b8 52%, #ddf98e 100%);
-  --tint: 6 35 43;
-  --smoke: 6 35 43;
-  --smoke-a: 0.5;
-  --smoke-surface: #14414a;
-}
-html[data-bg='midnight'] {
-  --page-gradient: linear-gradient(135deg, #14123a 0%, #4a33c9 55%, #e25cb0 100%);
-  --tint: 26 10 46;
-  --smoke: 10 8 40;
-  --smoke-a: 0.35;
-  --smoke-surface: #1d1a4d;
   --color-heading: #f7f4ff;
-  --color-heading-muted: rgb(247 244 255 / 0.78);
+  --color-heading-muted: rgb(247 244 255 / 0.82);
+}
+/* Photo background: bright cosmos meadow under a blue sky. Light overall, so ink/heading stay dark and no veil is needed. */
+html[data-bg='bloom'] {
+  --page-gradient: linear-gradient(180deg, #3fa4f5 0%, #fbd6dc 60%, #f0508a 100%);
+  --page-image: url('/images/bloom-meadow-background.webp');
+  --page-image-position: center center;
+  --tint: 40 30 70;
+  --smoke: 40 36 80;
+  --smoke-a: 0.42;
+  --smoke-surface: #2f3060;
+}
+/* Keep the meadow in view: wide screens crop height, so anchor lower; portrait screens crop width, so favour the sunrise side. */
+@media (min-aspect-ratio: 16/9) {
+  html[data-bg='floral'],
+  html[data-bg='highland'],
+  html[data-bg='bloom'] {
+    --page-image-position: center 78%;
+  }
+}
+@media (max-aspect-ratio: 1/1) {
+  html[data-bg='floral'],
+  html[data-bg='highland'],
+  html[data-bg='bloom'] {
+    --page-image-position: 25% bottom;
+  }
 }
 
 /* Glass styles */
-html[data-glass='crystal'] {
-  --color-glass: rgb(255 255 255 / 0.26);
-  --color-glass-strong: rgb(255 255 255 / 0.34);
-  --color-glass-edge: rgb(255 255 255 / 0.55);
-  --glass-filter: blur(20px) saturate(160%);
-  --color-field: rgb(255 255 255 / 0.36);
-  --color-field-edge: rgb(255 255 255 / 0.65);
-  --color-seg-on: rgb(255 255 255 / 0.85);
-  /* Already very transparent: lift with white rather than darken */
-  --color-hover: rgb(255 255 255 / 0.3);
+/* Light glass: text sits on a pale surface over a photo, so secondary text gets more ink than the base tokens give. */
+html[data-glass='frosted'],
+html[data-glass='opaque'],
+html[data-glass='milky'] {
+  --color-ink-2: rgb(var(--tint) / 0.96);
+  --color-muted: rgb(var(--tint) / 0.88);
+}
+/* Denser than milky: near-solid white, the photo behind only tints it. Leaves the least background showing through. */
+html[data-glass='opaque'] {
+  --color-glass: rgb(255 255 255 / 0.9);
+  --color-glass-strong: rgb(255 255 255 / 0.94);
+  --color-glass-edge: rgb(255 255 255 / 0.95);
+  --glass-filter: blur(30px);
+  --color-field: rgb(255 255 255 / 0.72);
+  --color-field-edge: rgb(255 255 255 / 0.9);
+  --color-hover: rgb(var(--tint) / 0.05);
 }
 html[data-glass='frosted'] {
   --color-field: rgb(255 255 255 / 0.38);
@@ -462,19 +493,6 @@ html[data-theme='plum'][data-glass='smoke'] {
   --color-theme-soft: rgb(201 166 220 / 0.25);
   --color-theme-soft-hover: rgb(201 166 220 / 0.35);
   --grad-theme: linear-gradient(135deg, #9a70b3 0%, #6b4580 52%, #4a2a5e 100%);
-}
-
-/* Combinations that need their own tuning */
-/* Clear glass over the dark Midnight gradient needs more body to keep dark text readable */
-html[data-bg='midnight'][data-glass='crystal'] {
-  --color-glass: rgb(255 255 255 / 0.5);
-  --color-glass-strong: rgb(255 255 255 / 0.58);
-  --color-field: rgb(255 255 255 / 0.55);
-}
-/* Dark glass on dark: lift it with a faint light wash so cards still separate from the page */
-html[data-bg='midnight'][data-glass='smoke'] {
-  --color-glass: rgb(255 255 255 / 0.1);
-  --color-glass-strong: rgb(255 255 255 / 0.16);
 }
 
 @layer components {

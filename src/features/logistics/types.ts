@@ -86,3 +86,50 @@ export interface RunSheet {
   completedAt: string | null
   stops: RunSheetStop[]
 }
+
+/** consignment_route = a consignment sales route's shops in order; direct = customer orders (domestic or export). Never mixed on one sheet. */
+export type DeliverySheetType = 'consignment_route' | 'direct'
+/** Stored status. `completed` is derived: a printed sheet whose stops are all resolved (and, for route sheets, whose returns are recorded). */
+export type DeliverySheetStatus = 'draft' | 'printed' | 'completed' | 'cancelled'
+export type DeliveryStopStatus = 'pending' | 'done' | 'failed'
+
+export interface DeliveryStop {
+  id: string
+  sequence: number
+  customerId: string
+  /** Direct sheets: the order being delivered */
+  customerOrderId: string | null
+  /** Route sheets: the check sheet made for this shop */
+  visitId: string | null
+  /** Set when the stop could not be delivered */
+  failReason: string | null
+}
+
+/** Route sheets: what goes on the truck for one product and what comes back. */
+export interface DeliveryLoadLine {
+  finishedGoodId: string
+  loadedQuantity: number
+  /** null until the driver is back and staff record the leftovers */
+  returnedQuantity: number | null
+}
+
+export interface DeliverySheet {
+  id: string
+  sheetNumber: string
+  sheetType: DeliverySheetType
+  /** yyyy-mm-dd */
+  deliveryDate: string
+  vehicleId: string
+  driverName: string
+  consignmentRouteId: string | null
+  consignmentEstimateId: string | null
+  status: Exclude<DeliverySheetStatus, 'completed'>
+  createdAt: string
+  /** Trip order of the day: no departure time, the sheets of one day are ordered by when they were printed */
+  printedAt: string | null
+  cancelledAt: string | null
+  cancelReason: string | null
+  returnRecordedAt: string | null
+  loadLines: DeliveryLoadLine[]
+  stops: DeliveryStop[]
+}

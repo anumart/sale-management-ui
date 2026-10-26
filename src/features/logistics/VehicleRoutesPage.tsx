@@ -75,7 +75,7 @@ function RouteStops({ route }: { route: VehicleRoute }) {
             label="เพิ่มจุดรับของ"
             containerClassName="mb-0 min-w-64 flex-1"
             value={addPointId}
-            onChange={(e) => setAddPointId(e.target.value)}
+            onChange={setAddPointId}
             placeholder="เลือกจุดรับสินค้าของซัพพลายเออร์..."
             options={availablePoints.map((p) => ({ value: p.id, label: `${p.supplierName} — ${p.routeName}` }))}
           />

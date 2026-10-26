@@ -1,8 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
-import { IconEye, IconPlus, IconSearch } from '@/components/icons'
-import { Button, Card, CardHeader, DataTable, SegmentedControl, StatusPill, type DataTableColumn, type PillTone } from '@/components/ui'
+import { IconEye, IconPlus } from '@/components/icons'
+import { Button, Card, CardHeader, DataTable, DateRangePicker, FilterSelect, FilterSheet, ListToolbar, MultiSelectList, StatusPill, useFilterSheet, type CriteriaChip, type DataTableColumn, type PillTone } from '@/components/ui'
 import { PageHeading } from '@/components/layout/PageHeading'
+import { useListCriteria } from '@/hooks/useListCriteria'
+import { countBy, dateRangeText, inDateRange, matchesText } from '@/lib/criteria'
 import { formatDateTime } from '@/lib/format'
 import { useProcurementStore } from './store'
 import type { PurchasePlan, PlanStatus } from './types'
@@ -10,18 +11,55 @@ import { monthName, thaiYear } from './utils'
 
 const statusTone: Record<PlanStatus, PillTone> = { draft: 'gray', ordered: 'success', archived: 'neutral' }
 const statusLabel: Record<PlanStatus, string> = { draft: 'ร่าง', ordered: 'สั่งซื้อแล้ว', archived: 'เก็บถาวร' }
-const pageSize = 5
+const statusOrder: PlanStatus[] = ['draft', 'ordered', 'archived']
+
+interface Criteria {
+  query: string
+  status: PlanStatus | 'all'
+  creators: string[]
+  createdFrom: string
+  createdTo: string
+}
+
+const emptyCriteria: Criteria = { query: '', status: 'all', creators: [], createdFrom: '', createdTo: '' }
+const pageSize = 10
 
 export function PlansListPage() {
   const navigate = useNavigate()
   const plans = useProcurementStore((s) => s.plans)
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<PlanStatus | 'all'>('all')
-  const [page, setPage] = useState(1)
+  const { criteria, update, clear, page, setPage } = useListCriteria(emptyCriteria)
+  const sheet = useFilterSheet()
 
-  const filtered = plans.filter(
-    (p) => (status === 'all' || p.status === status) && p.name.toLowerCase().includes(search.trim().toLowerCase()),
-  )
+  const needle = criteria.query.trim().toLowerCase()
+  /** `skip` leaves one criterion out so the filter UI can show how many results each of its values would give. */
+  const matches = (p: PurchasePlan, skip?: 'status' | 'creator') => {
+    if (skip !== 'status' && criteria.status !== 'all' && p.status !== criteria.status) return false
+    if (skip !== 'creator' && criteria.creators.length && !criteria.creators.includes(p.createdByName)) return false
+    if (!inDateRange(p.createdAt, criteria.createdFrom, criteria.createdTo)) return false
+    return matchesText(needle, p.name, p.createdByName, `${monthName(p.sourceMonth)} ${thaiYear(p.sourceYear)}`)
+  }
+  const rows = plans.filter((p) => matches(p))
+
+  const statusCounts = countBy(plans.filter((p) => matches(p, 'status')), (p) => p.status)
+  const creatorCounts = countBy(plans.filter((p) => matches(p, 'creator')), (p) => p.createdByName)
+  const statusOptions = [
+    { value: 'all' as const, label: 'ทั้งหมด', count: [...statusCounts.values()].reduce((a, b) => a + b, 0) },
+    ...statusOrder.map((st) => ({ value: st, label: statusLabel[st], tone: statusTone[st], count: statusCounts.get(st) ?? 0 })),
+  ]
+  const creatorNames = [...new Set(plans.map((p) => p.createdByName))]
+
+  const chips: CriteriaChip[] = [
+    ...criteria.creators.map((name) => ({
+      key: `c-${name}`,
+      label: 'สร้างโดย',
+      value: name,
+      onRemove: () => update({ creators: criteria.creators.filter((x) => x !== name) }),
+    })),
+    ...(criteria.createdFrom || criteria.createdTo
+      ? [{ key: 'created', label: 'สร้างเมื่อ', value: dateRangeText(criteria.createdFrom, criteria.createdTo), onRemove: () => update({ createdFrom: '', createdTo: '' }) }]
+      : []),
+  ]
+  const hasAnyCriteria = chips.length > 0 || !!criteria.query || criteria.status !== 'all'
 
   const columns: DataTableColumn<PurchasePlan>[] = [
     { key: 'name', label: 'ชื่อแผน', sortValue: (p) => p.name.toLowerCase(), render: (p) => <span className="font-medium">{p.name}</span> },
@@ -58,57 +96,44 @@ export function PlansListPage() {
           title="แผนจัดซื้อ"
           subtitle="แต่ละแผนใช้ได้ครั้งเดียวต่อรอบการจัดซื้อ"
           action={
-            <div className="flex flex-wrap items-center gap-2.5">
-              <label className="flex h-11 w-56 items-center gap-2 rounded-full border border-field-edge bg-field px-4 text-muted focus-within:border-primary">
-                <IconSearch className="size-5 shrink-0" />
-                <span className="sr-only">ค้นหาแผน</span>
-                <input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  placeholder="ค้นหาชื่อแผน..."
-                  className="min-w-0 flex-1 bg-transparent text-control text-ink outline-none"
-                />
-              </label>
-              <SegmentedControl
-                variant="mask"
-                aria-label="กรองตามสถานะ"
-                value={status}
-                onChange={(v) => {
-                  setStatus(v)
-                  setPage(1)
-                }}
-                options={[
-                  { value: 'all', label: 'ทั้งหมด' },
-                  { value: 'draft', label: 'ร่าง' },
-                  { value: 'ordered', label: 'สั่งซื้อแล้ว' },
-                  { value: 'archived', label: 'เก็บถาวร' },
-                ]}
-              />
-              <Button
-                iconOnly
-                round
-                aria-label="สร้างแผนจัดซื้อ"
-                title="สร้างแผนจัดซื้อ"
-                onClick={() => navigate({ to: '/procurement/plans/new/step-1' })}
-              >
-                <IconPlus />
-              </Button>
-            </div>
+            <Button
+              iconOnly
+              round
+              aria-label="สร้างแผนจัดซื้อ"
+              title="สร้างแผนจัดซื้อ"
+              onClick={() => navigate({ to: '/procurement/plans/new/step-1' })}
+            >
+              <IconPlus />
+            </Button>
           }
+        />
+
+        <ListToolbar
+          searchLabel="ค้นหาแผน"
+          searchPlaceholder="ค้นหาชื่อแผน, ผู้สร้าง, เดือนอ้างอิง"
+          query={criteria.query}
+          onQueryChange={(query) => update({ query })}
+          filters={
+            <FilterSelect label="สถานะ" value={criteria.status} options={statusOptions} neutralValue="all" onChange={(status) => update({ status })} className="w-full sm:w-64" />
+          }
+          sheetCount={criteria.creators.length + (criteria.createdFrom || criteria.createdTo ? 1 : 0)}
+          onOpenSheet={sheet.openSheet}
+          chips={chips}
+          resultText={`พบ ${rows.length} จาก ${plans.length} แผน`}
+          hasCriteria={hasAnyCriteria}
+          onClear={clear}
         />
 
         <DataTable
           columns={columns}
-          rows={filtered}
+          rows={rows}
           rowKey={(p) => p.id}
           pageSize={pageSize}
           page={page}
           onPageChange={setPage}
           emptyTitle="ไม่พบแผนจัดซื้อ"
-          emptyDescription="ลองเปลี่ยนคำค้นหาหรือตัวกรอง หรือสร้างแผนใหม่"
+          paginationVariant="jump"
+          emptyDescription={hasAnyCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : 'สร้างแผนใหม่เพื่อเริ่มต้น'}
           renderActions={(plan) => (
             <Button
               size="sm"
@@ -124,6 +149,22 @@ export function PlansListPage() {
           )}
         />
       </Card>
+
+      <FilterSheet
+        open={sheet.open}
+        onClose={sheet.closeSheet}
+        title="ตัวกรองแผนจัดซื้อ"
+        resultCount={rows.length}
+        onClear={() => update({ creators: [], createdFrom: '', createdTo: '' })}
+      >
+        <MultiSelectList
+          label="สร้างโดย"
+          options={creatorNames.map((name) => ({ value: name, label: name, count: creatorCounts.get(name) ?? 0 }))}
+          value={criteria.creators}
+          onChange={(creators) => update({ creators })}
+        />
+        <DateRangePicker label="สร้างเมื่อ" from={criteria.createdFrom} to={criteria.createdTo} onChange={(createdFrom, createdTo) => update({ createdFrom, createdTo })} />
+      </FilterSheet>
     </>
   )
 }

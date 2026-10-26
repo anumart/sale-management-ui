@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { Button, Card, CardHeader, Select, TextField } from '@/components/ui'
+import { Button, Card, CardHeader, DatePicker, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/format'
 import { toast } from '@/stores/toastStore'
 import { pickupPointById } from './mockData'
@@ -66,7 +66,7 @@ export function GenerateRunSheetPage() {
             required
             placeholder="เลือกเส้นทาง..."
             value={routeId}
-            onChange={(e) => setRouteId(e.target.value)}
+            onChange={setRouteId}
             options={activeRoutes.map((r) => ({ value: r.id, label: r.routeName }))}
           />
           <Select
@@ -74,10 +74,10 @@ export function GenerateRunSheetPage() {
             required
             placeholder="เลือกรถ..."
             value={vehicleId}
-            onChange={(e) => setVehicleId(e.target.value)}
+            onChange={setVehicleId}
             options={activeVehicles.map((v) => ({ value: v.id, label: `${v.code} — ${v.driverName}` }))}
           />
-          <TextField label="วันที่วิ่ง" required type="date" value={runDate} onChange={(e) => setRunDate(e.target.value)} />
+          <DatePicker label="วันที่วิ่ง" required value={runDate} onChange={setRunDate} />
         </div>
       </Card>
 

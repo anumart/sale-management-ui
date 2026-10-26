@@ -3,7 +3,7 @@ import { Dropdown, IconButton } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { backgrounds, glassStyles, themeColors, useAppearanceStore } from '@/stores/appearanceStore'
 
-/** Top-bar button + panel for choosing the page background gradient, the glass surface style and the theme color. */
+/** Top-bar button + panel for choosing the page background photo, the glass surface style and the theme color. */
 export function AppearanceMenu() {
   const { background, glass, theme, setBackground, setGlass, setTheme } = useAppearanceStore()
 
@@ -16,7 +16,7 @@ export function AppearanceMenu() {
       <div role="dialog" aria-label="ธีมและพื้นหลัง" className="flex flex-col gap-5 p-5">
         <section>
           <h4 className="mb-3 text-control font-semibold">พื้นหลัง</h4>
-          <div className="grid grid-cols-4 gap-2.5" role="radiogroup" aria-label="พื้นหลัง">
+          <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="พื้นหลัง">
             {backgrounds.map((b) => (
               <button
                 key={b.id}
@@ -31,7 +31,11 @@ export function AppearanceMenu() {
                     'block h-12 w-full rounded-xl border border-white/60 transition-shadow duration-200',
                     background === b.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-white/70' : 'hover:shadow-pop',
                   )}
-                  style={{ backgroundImage: `linear-gradient(120deg, ${b.colors.join(', ')})` }}
+                  style={{
+                    backgroundImage: `url(${b.image}), linear-gradient(120deg, ${b.colors.join(', ')})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
                 />
                 <span className={cn('text-xs', background === b.id ? 'font-semibold' : 'text-muted')}>{b.label}</span>
               </button>

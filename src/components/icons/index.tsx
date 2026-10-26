@@ -38,6 +38,7 @@ import {
   Edit2,
   Eye,
   ExportSquare,
+  Filter,
   Flash,
   Heart,
   Home,
@@ -114,6 +115,7 @@ export const IconMessage = decorative(Message)
 export const IconBell = decorative(Notification)
 export const IconPalette = decorative(Colorfilter)
 export const IconSearch = decorative(SearchNormal1)
+export const IconFilter = decorative(Filter)
 export const IconPlus = decorative(Add)
 export const IconChevronDown = decorative(ArrowDown2)
 export const IconChevronLeft = decorative(ArrowLeft2)

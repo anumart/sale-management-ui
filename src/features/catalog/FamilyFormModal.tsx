@@ -35,7 +35,8 @@ export function FamilyFormModal({ open, onClose, family }: FamilyFormModalProps)
     )
   }, [open, family])
 
-  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key: keyof typeof emptyForm) => (e: ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const setValue = (key: keyof typeof emptyForm) => (value: string) => setForm((f) => ({ ...f, [key]: value }))
 
   const handleSave = () => {
     const code = form.code.trim()
@@ -82,7 +83,7 @@ export function FamilyFormModal({ open, onClose, family }: FamilyFormModalProps)
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label="รหัสตระกูล" required placeholder="ANTH-CALISTO" value={form.code} onChange={set('code')} error={errors.code} />
-        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={set('categoryId')} options={categoryOptions} error={errors.categoryId} />
+        <Select label="หมวดหมู่" required placeholder="เลือกหมวดหมู่" value={form.categoryId} onChange={setValue('categoryId')} options={categoryOptions} error={errors.categoryId} />
         <TextField label="ชื่อตระกูล (ไทย)" required placeholder="หน้าวัว คาลิสโต้" value={form.nameTh} onChange={set('nameTh')} error={errors.nameTh} />
         <TextField label="ชื่อตระกูล (อังกฤษ)" placeholder="Anth. Calisto" value={form.nameEn} onChange={set('nameEn')} />
         <TextField label="สี" placeholder="Scarlet" value={form.color} onChange={set('color')} />
