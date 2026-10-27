@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { IconBell, IconCalendar, IconWallet, IconWarning, IconWrench } from '@/components/icons'
-import { Dropdown, IconButton, SegmentedControl, Spinner } from '@/components/ui'
+import type { ReactNode } from 'react'
+import { IconBell, IconCalendar, IconCheck, IconWallet, IconWarning, IconWrench } from '@/components/icons'
+import { Dropdown, IconButton, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatRelative } from '@/lib/format'
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '../api'
@@ -18,10 +18,8 @@ export function NotificationMenu() {
   const { data = [], isLoading } = useNotifications()
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsRead()
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
   const unread = data.filter((n) => !n.read).length
-  const list = filter === 'all' ? data : data.filter((n) => !n.read)
 
   return (
     <Dropdown
@@ -37,40 +35,28 @@ export function NotificationMenu() {
       )}
     >
       <div role="dialog" aria-label="การแจ้งเตือน">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="flex items-center justify-between border-b border-line px-5 pt-5 pb-3">
           <h4 className="text-title font-semibold">การแจ้งเตือน</h4>
           <button
             type="button"
             disabled={unread === 0}
             onClick={() => markAll.mutate()}
-            className="text-sm text-primary-fg hover:underline disabled:cursor-default disabled:text-muted disabled:no-underline"
+            className="inline-flex items-center gap-1 text-sm text-primary-fg hover:underline disabled:cursor-default disabled:text-muted disabled:no-underline [&>svg]:size-4"
           >
+            <IconCheck />
             อ่านทั้งหมดแล้ว
           </button>
         </div>
-        <div className="border-b border-line px-5 pb-3">
-          <SegmentedControl
-            size="sm"
-            aria-label="กรองการแจ้งเตือน"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'ทั้งหมด' },
-              { value: 'unread', label: `ยังไม่อ่าน${unread ? ` (${unread})` : ''}` },
-            ]}
-          />
-        </div>
-
         <ul className="max-h-[23.75rem] overflow-y-auto">
           {isLoading && (
             <li className="grid place-items-center py-10 text-muted">
               <Spinner />
             </li>
           )}
-          {!isLoading && list.length === 0 && (
+          {!isLoading && data.length === 0 && (
             <li className="px-5 py-10 text-center text-sm text-muted">ไม่มีการแจ้งเตือนใหม่ 🎉</li>
           )}
-          {list.map((n) => (
+          {data.map((n) => (
             <li key={n.id} className="border-b border-line last:border-0">
               <button
                 type="button"

@@ -86,7 +86,7 @@ export function CustomerOrderDetailPage({ orderId }: { orderId: string }) {
   }
 
   const handlePlanPurchase = () => {
-    useWizardStore.getState().startFromOrders([order.id])
+    useWizardStore.getState().startFromOrders([order])
     navigate({ to: '/procurement/plans/new/step-1' })
   }
 

@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { IconArrowUpRight, IconCheck, IconClose, IconEye } from '@/components/icons'
+import { IconArrowUpRight, IconCheck, IconClose, IconEye, IconPlus } from '@/components/icons'
 import { Button, Card, CardHeader, DataTable, DateRangePicker, FilterSelect, FilterSheet, ListToolbar, MultiSelectList, StatusPill, useFilterSheet, type CriteriaChip, type DataTableColumn } from '@/components/ui'
 import { useCatalogStore } from '@/features/catalog/store'
 import { useListCriteria } from '@/hooks/useListCriteria'
@@ -8,6 +9,7 @@ import { countBy, dateRangeText, inDateRange, matchesText } from '@/lib/criteria
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
+import { AddPurchaseOrderModal } from './AddPurchaseOrderModal'
 import { planById, supplierById, useProcurementStore } from './store'
 import type { PoStatus, PurchaseOrder } from './types'
 import { poStatusLabel, poStatusTone } from './utils'
@@ -34,6 +36,7 @@ export function PurchaseOrdersPage() {
   const rawMaterials = useCatalogStore((s) => s.rawMaterials)
   const { criteria, update, clear: clearCriteria, page, setPage } = useListCriteria(emptyCriteria)
   const sheet = useFilterSheet()
+  const [modalOpen, setModalOpen] = useState(false)
 
   const handleSend = (po: PurchaseOrder, supplierName: string) => {
     if (updatePurchaseOrderStatus(po.id, 'sent')) toast.success(`ส่ง ${po.poNumber} ให้ ${supplierName} แล้ว`)
@@ -59,7 +62,7 @@ export function PurchaseOrdersPage() {
   const matches = (po: PurchaseOrder, skip?: 'status' | 'supplier' | 'plan') => {
     if (skip !== 'status' && criteria.status !== 'all' && po.status !== criteria.status) return false
     if (skip !== 'supplier' && criteria.supplierIds.length && !criteria.supplierIds.includes(po.supplierId)) return false
-    if (skip !== 'plan' && criteria.planIds.length && !criteria.planIds.includes(po.planId)) return false
+    if (skip !== 'plan' && criteria.planIds.length && !criteria.planIds.includes(po.planId ?? '')) return false
     if (!inDateRange(po.expectedDeliveryDate, criteria.dueFrom, criteria.dueTo)) return false
     return matchesText(
       needle,
@@ -72,7 +75,7 @@ export function PurchaseOrdersPage() {
   const rows = purchaseOrders.filter((po) => matches(po))
 
   const countFor = (skip: 'status' | 'supplier' | 'plan', key: 'status' | 'supplierId' | 'planId') =>
-    countBy(purchaseOrders.filter((po) => matches(po, skip)), (po) => po[key])
+    countBy(purchaseOrders.filter((po) => matches(po, skip)), (po) => po[key] ?? '')
   const statusCounts = countFor('status', 'status')
   const supplierCounts = countFor('supplier', 'supplierId')
   const planCounts = countFor('plan', 'planId')
@@ -111,7 +114,7 @@ export function PurchaseOrdersPage() {
 
   const columns: DataTableColumn<PurchaseOrder>[] = [
     { key: 'poNumber', label: 'เลขที่ใบสั่งซื้อ', sortValue: (po) => po.poNumber, render: (po) => <span className="font-medium">{po.poNumber}</span> },
-    { key: 'plan', label: 'แผน', sortValue: (po) => (planById(po.planId)?.name ?? '').toLowerCase(), render: (po) => planById(po.planId)?.name ?? '—' },
+    { key: 'plan', label: 'แผน', sortValue: (po) => (planById(po.planId)?.name ?? '').toLowerCase(), render: (po) => planById(po.planId)?.name ?? <span className="text-muted">สั่งเอง</span> },
     {
       key: 'supplier',
       label: 'ซัพพลายเออร์',
@@ -137,7 +140,13 @@ export function PurchaseOrdersPage() {
     <>
       <PageHeading section="จัดซื้อ" title="ใบสั่งซื้อ" />
       <Card>
-        <CardHeader title="ใบสั่งซื้อทั้งหมด" subtitle="การเปลี่ยนสถานะเก็บไว้เฉพาะรอบการใช้งานนี้ ไม่มีการส่งจริงถึงซัพพลายเออร์" />
+        <CardHeader title="ใบสั่งซื้อทั้งหมด" subtitle="การเปลี่ยนสถานะเก็บไว้เฉพาะรอบการใช้งานนี้ ไม่มีการส่งจริงถึงซัพพลายเออร์"
+          action={
+            <Button iconOnly round aria-label="สร้างใบสั่งซื้อ" title="สร้างใบสั่งซื้อ" onClick={() => setModalOpen(true)}>
+              <IconPlus />
+            </Button>
+          }
+        />
 
         <ListToolbar
           searchLabel="ค้นหาใบสั่งซื้อ"
@@ -171,7 +180,7 @@ export function PurchaseOrdersPage() {
           onPageChange={setPage}
           paginationVariant="jump"
           emptyTitle="ไม่พบใบสั่งซื้อ"
-          emptyDescription={hasAnyCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : 'ใบสั่งซื้อที่สร้างจากแผนจัดซื้อจะแสดงที่นี่'}
+          emptyDescription={hasAnyCriteria ? 'ลองลดเงื่อนไขหรือกด "ล้างเงื่อนไข"' : 'ใบสั่งซื้อที่สร้างจากแผนจัดซื้อหรือสร้างเองจะแสดงที่นี่'}
           renderActions={(po) => {
             const supplier = supplierById(po.supplierId)
             return (
@@ -228,6 +237,8 @@ export function PurchaseOrdersPage() {
           }}
         />
       </Card>
+
+      <AddPurchaseOrderModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <FilterSheet
         open={sheet.open}

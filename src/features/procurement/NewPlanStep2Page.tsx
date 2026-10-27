@@ -4,23 +4,23 @@ import { PageHeading } from '@/components/layout/PageHeading'
 import { Button, Card, CardHeader, StepProgress, TextField } from '@/components/ui'
 import { toast } from '@/stores/toastStore'
 import { useSalesStore } from '@/features/sales/store'
-import { useWizardPlanLines } from './demand'
+import { planSourceLabel, useWizardPlanLines } from './demand'
 import { buildPlanRawMaterials, finishedGoodById, rawMaterialById, suppliersFor } from './mockData'
 import { useProcurementStore, useWizardStore, wizardSteps } from './store'
 import type { PurchasePlan } from './types'
-import { monthName, roundQty, thaiYear } from './utils'
+import { roundQty } from './utils'
 
 export function NewPlanStep2Page() {
   const navigate = useNavigate()
-  const { source, orderIds, sourceMonth, sourceYear, lines, planName, setPlanName, reset } = useWizardStore()
+  const { lines, planName, setPlanName, reset } = useWizardStore()
   const addPlan = useProcurementStore((s) => s.addPlan)
   const linkOrdersToPlan = useSalesStore((s) => s.linkOrdersToPlan)
-  const { planLines, selectedOrders } = useWizardPlanLines()
+  const { planLines, sources, orderIds } = useWizardPlanLines()
 
-  const suggestedName =
-    source === 'customer_orders'
-      ? `แผนจัดซื้อ - คำสั่งซื้อ ${new Date().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}`
-      : `แผนจัดซื้อ - ${monthName(sourceMonth)} ${thaiYear(sourceYear)}`
+  const today = new Date()
+  const sourceMonth = today.getMonth() + 1
+  const sourceYear = today.getFullYear()
+  const suggestedName = `แผนจัดซื้อ - ${today.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}`
 
   useEffect(() => {
     if (lines.length === 0) navigate({ to: '/procurement/plans/new/step-1' })
@@ -37,13 +37,14 @@ export function NewPlanStep2Page() {
       sourceYear,
       createdByName: 'คุณ',
       createdAt: new Date().toISOString(),
-      source,
-      customerOrderIds: source === 'customer_orders' ? orderIds : undefined,
+      source: sources[0],
+      sources,
+      customerOrderIds: orderIds.length > 0 ? orderIds : undefined,
       lines: planLines,
       rawMaterials,
     }
     addPlan(plan)
-    if (source === 'customer_orders') linkOrdersToPlan(orderIds, plan.id)
+    if (orderIds.length > 0) linkOrdersToPlan(orderIds, plan.id)
     toast.success('สร้างแผนจัดซื้อแล้ว')
     reset()
     navigate({ to: '/procurement/plans/$planId', params: { planId: plan.id } })
@@ -69,7 +70,7 @@ export function NewPlanStep2Page() {
       <Card className="mb-6">
         <CardHeader
           title="สินค้าที่จะผลิต"
-          subtitle={source === 'customer_orders' ? `สำหรับ ${selectedOrders.map((o) => o.orderNumber).join(', ')}` : 'จากประวัติการขาย'}
+          subtitle={`ที่มา: ${sources.map((s) => planSourceLabel[s]).join(', ')}`}
         />
         <div className="overflow-x-auto">
           <table className="w-full border-separate text-base [border-spacing:0_0.5rem]">

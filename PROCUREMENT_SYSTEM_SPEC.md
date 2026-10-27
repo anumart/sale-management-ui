@@ -773,7 +773,7 @@ pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive 
 | — | โปรไฟล์ (เปลี่ยนรหัส, เชื่อม LINE) | `/profile` | ทุก role | 📝 |
 | — | แจ้งเตือน: กระดิ่งที่ topbar (ไม่มีหน้าแยก) | — | ทุก role | 📝 |
 | แดชบอร์ด | ภาพรวม + การ์ดความเสี่ยง | `/` | admin, staff | ✅ |
-| จัดซื้อ | แผนจัดซื้อ: รายการ · สร้าง (2 ขั้น) · รายละเอียด | `/procurement/plans` · `/procurement/plans/new/step-1`, `/step-2` · `/procurement/plans/{id}` | admin, staff | ✅ |
+| จัดซื้อ | แผนจัดซื้อ: รายการ · สร้าง (หน้า 1: ที่มาข้อมูล 3 แบบ [ประวัติการขาย / คำสั่งซื้อ / เลือกสินค้าเอง] → แผนการจัดซื้อ แก้จำนวน/ลบได้ → ประมาณวัตถุดิบ; หน้า 2: ตรวจสอบและสร้าง) · รายละเอียด | `/procurement/plans` · `/procurement/plans/new/step-1`, `/step-2` · `/procurement/plans/{id}` | admin, staff | ✅ |
 | | ใบสั่งซื้อ: รายการ · รายละเอียด | `/procurement/purchase-orders` · `/procurement/purchase-orders/{id}` | admin, staff | ✅ |
 | | ซัพพลายเออร์: รายการ · รายละเอียด (จุดรับ, วัตถุดิบที่ขาย) | `/procurement/suppliers` · `/procurement/suppliers/{id}` | admin, staff | ✅ |
 | งานวันนี้ | งานวันนี้ของคนขับ: ใบวิ่งรถ + ใบส่งของของวันนี้ เรียงตามเที่ยว (มือถือ, §3.4.2) | `/my-jobs` | driver | 📝 |

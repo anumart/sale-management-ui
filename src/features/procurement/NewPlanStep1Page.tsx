@@ -1,219 +1,115 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { Button, Card, CardHeader, Checkbox, DataTable, DeltaBadge, SegmentedControl, StepProgress, TextField, Timeline, TimelineStep, type DataTableColumn } from '@/components/ui'
-import { customerById, useSalesStore } from '@/features/sales/store'
-import { formatDate } from '@/features/sales/utils'
-import { DateRangeField } from './DateRangeField'
-import { baseDemand, productsOf, usePlannableOrders, useWizardPlanLines } from './demand'
-import { getFinishedGoods } from '@/features/catalog/store'
-import { computeRequiredQuantities, finishedGoodById, rawMaterialById, salesHistory } from './mockData'
-import { useWizardStore, wizardSteps } from './store'
-import type { FinishedGood, PlanSource } from './types'
+import { IconTrash } from '@/components/icons'
+import { Button, Card, CardHeader, DataTable, SegmentedControl, StatusPill, StepProgress, TextField, Timeline, TimelineStep, type DataTableColumn } from '@/components/ui'
+import { planSourceLabel, useWizardPlanLines } from './demand'
+import { computeRequiredQuantities, finishedGoodById, rawMaterialById } from './mockData'
+import { HistoryPicker, OrdersPicker, ProductPicker } from './PlanSourcePickers'
+import { useWizardStore, wizardSteps, type WizardLine } from './store'
+import type { PlanSource } from './types'
 import { roundQty } from './utils'
 
-function OrderPicker() {
-  const { orderIds, setOrders } = useWizardStore()
-  const orders = useSalesStore((s) => s.orders)
-  const plannable = usePlannableOrders()
-  // An order opened via "Plan Purchase" stays listed even if it no longer qualifies
-  const rows = [...plannable, ...orders.filter((o) => orderIds.includes(o.id) && !plannable.includes(o))]
-
-  const toggle = (id: string) => {
-    const next = orderIds.includes(id) ? orderIds.filter((x) => x !== id) : [...orderIds, id]
-    setOrders(next, productsOf(orders.filter((o) => next.includes(o.id))))
-  }
-
-  return rows.length === 0 ? (
-    <p className="py-4 text-muted">ไม่มีคำสั่งซื้อที่ยืนยันแล้วรอวางแผนจัดซื้อ</p>
-  ) : (
-    <ul className="space-y-2">
-      {rows.map((o) => (
-        <li key={o.id}>
-          <label
-            className={`flex cursor-pointer flex-wrap items-center gap-4 rounded-[0.875rem] border border-line px-3.5 py-3 ${orderIds.includes(o.id) ? 'bg-primary-soft' : 'hover:bg-hover'}`}
-          >
-            <Checkbox aria-label={`เลือก ${o.orderNumber}`} checked={orderIds.includes(o.id)} onChange={() => toggle(o.id)} />
-            <span className="w-36 font-medium">{o.orderNumber}</span>
-            <span className="min-w-40 flex-1">{customerById(o.customerId)?.name}</span>
-            <span className="text-sm text-muted">ส่งภายใน {formatDate(o.requestedDeliveryDate)}</span>
-            <span className="w-full text-sm text-ink-2 sm:w-auto">
-              {o.lines.map((l) => `${finishedGoodById(l.finishedGoodId ?? '')?.name} × ${l.quantity}`).join(', ')}
-            </span>
-          </label>
-        </li>
-      ))}
-    </ul>
-  )
+const sourceHint: Record<PlanSource, string> = {
+  sales_history: 'ดูยอดขายย้อนหลังตามช่วงวันที่ เลือกสินค้าที่ต้องการแล้วเพิ่มเข้าแผน',
+  customer_orders: 'เลือกคำสั่งซื้อที่ยืนยันแล้วและรอวางแผนจัดซื้อ ระบบเพิ่มสินค้าและจำนวนของทุกรายการในใบให้',
+  finished_goods: 'ค้นหาสินค้าสำเร็จรูปจากแคตตาล็อกเอง ระบุจำนวนที่ต้องการแล้วเพิ่มเข้าแผน',
 }
 
 export function NewPlanStep1Page() {
   const navigate = useNavigate()
-  const { source, orderIds, sourceStartDate, sourceEndDate, lines, setSource, setSourceRange, toggleLine, setAdjustment, setOrders } =
-    useWizardStore()
-  const orders = useSalesStore((s) => s.orders)
-  const { planLines, selectedOrders } = useWizardPlanLines()
+  const { sourceTab, lines, setSourceTab, setQuantity, removeLine } = useWizardStore()
+  const { planLines } = useWizardPlanLines()
 
-  // Opened from an order's "Plan Purchase": fill in its products once
-  const prefilled = useRef(false)
-  useEffect(() => {
-    if (prefilled.current) return
-    prefilled.current = true
-    if (source === 'customer_orders' && orderIds.length > 0 && lines.length === 0)
-      setOrders(orderIds, productsOf(orders.filter((o) => orderIds.includes(o.id))))
-  }, [source, orderIds, lines.length, orders, setOrders])
+  const planReady = lines.length > 0 && lines.every((l) => l.quantity > 0)
+  const rmRows = [...computeRequiredQuantities(planLines).entries()].map(([rawMaterialId, quantity]) => ({ rawMaterialId, quantity }))
 
-  const requiredByRm = computeRequiredQuantities(planLines)
-  const fromOrders = source === 'customer_orders'
-  const orderedProducts = productsOf(selectedOrders)
-  const productRows = fromOrders ? getFinishedGoods().filter((fg) => orderedProducts.includes(fg.id)) : getFinishedGoods(true)
-  const selectedIds = new Set(lines.map((l) => l.finishedGoodId))
-  const step1Done = !fromOrders || orderIds.length > 0
-  const step2Done = lines.length > 0
-  /** DataTable hands back the whole next selection; toggle whatever changed. */
-  const selectProducts = (next: Set<string>) =>
-    productRows.forEach((fg) => {
-      if (next.has(fg.id) !== selectedIds.has(fg.id)) toggleLine(fg.id)
-    })
-
-  const productColumns: DataTableColumn<FinishedGood>[] = [
+  const lineColumns: DataTableColumn<WizardLine>[] = [
+    { key: 'name', label: 'สินค้า', render: (l) => <span className="font-medium">{finishedGoodById(l.finishedGoodId)?.name}</span> },
     {
-      key: 'name',
-      label: 'สินค้า',
-      render: (fg) => <span className="font-medium">{fg.name}</span>,
-    },
-    {
-      key: 'base',
-      label: fromOrders ? 'สั่ง' : 'ยอดขายเดือนที่แล้ว',
-      render: (fg) => (
-        <span className="tabular-nums">
-          {baseDemand(source, selectedOrders, fg.id)} {fg.unit}
-        </span>
+      key: 'origins',
+      label: 'ที่มา',
+      render: (l) => (
+        <div className="flex flex-wrap gap-1.5">
+          {l.origins.map((o) => (
+            <StatusPill key={o.key} tone={o.kind === 'customer_orders' ? 'info' : o.kind === 'sales_history' ? 'accent' : 'neutral'}>
+              {o.label} · {o.quantity}
+            </StatusPill>
+          ))}
+        </div>
       ),
     },
-    ...(fromOrders
-      ? []
-      : [
-          {
-            key: 'trend',
-            label: 'แนวโน้ม',
-            render: (fg: FinishedGood) => <DeltaBadge value={salesHistory.find((s) => s.finishedGoodId === fg.id)?.trendPct ?? 0} />,
-          },
-        ]),
     {
-      key: 'adjust',
-      label: 'ปรับเพิ่ม/ลด %',
-      render: (fg) => {
-        const line = lines.find((l) => l.finishedGoodId === fg.id)
-        return (
+      key: 'quantity',
+      label: 'จำนวนที่วางแผน',
+      render: (l) => (
+        <div className="flex items-center gap-2">
           <TextField
             type="number"
-            aria-label={`เปอร์เซ็นต์ปรับของ ${fg.name}`}
-            disabled={!line}
-            value={line?.adjustmentPct ?? 0}
-            onChange={(e) => setAdjustment(fg.id, Number(e.target.value))}
-            className="w-24"
+            min={0}
+            aria-label={`จำนวนที่วางแผนของ ${finishedGoodById(l.finishedGoodId)?.name}`}
+            value={l.quantity}
+            onChange={(e) => setQuantity(l.finishedGoodId, Math.max(0, Number(e.target.value)))}
+            className="w-28"
             containerClassName="mb-0"
           />
-        )
-      },
-    },
-    {
-      key: 'planned',
-      label: 'จำนวนที่วางแผน',
-      cellClassName: 'tabular-nums',
-      render: (fg) => {
-        const line = lines.find((l) => l.finishedGoodId === fg.id)
-        return line ? `${Math.round(baseDemand(source, selectedOrders, fg.id) * (1 + line.adjustmentPct / 100))} ${fg.unit}` : '—'
-      },
+          <span className="text-muted">{finishedGoodById(l.finishedGoodId)?.unit}</span>
+        </div>
+      ),
     },
   ]
 
-  const rmRows = [...requiredByRm.entries()].map(([rawMaterialId, quantity]) => ({ rawMaterialId, quantity }))
   const rmColumns: DataTableColumn<(typeof rmRows)[number]>[] = [
-    {
-      key: 'name',
-      label: 'วัตถุดิบ',
-      render: (r) => rawMaterialById(r.rawMaterialId)?.nameTh,
-    },
-    {
-      key: 'qty',
-      label: 'จำนวนที่ต้องใช้',
-      cellClassName: 'tabular-nums',
-      render: (r) => `${roundQty(r.quantity)} ${rawMaterialById(r.rawMaterialId)?.unit ?? ''}`,
-    },
+    { key: 'name', label: 'วัตถุดิบ', render: (r) => rawMaterialById(r.rawMaterialId)?.nameTh },
+    { key: 'qty', label: 'จำนวนที่ต้องใช้', cellClassName: 'tabular-nums', render: (r) => `${roundQty(r.quantity)} ${rawMaterialById(r.rawMaterialId)?.unit ?? ''}` },
   ]
 
   return (
     <>
-      <PageHeading
-        section="จัดซื้อ"
-        parent={{ label: 'แผนจัดซื้อ', to: '/procurement/plans' }}
-        title="สร้างแผนจัดซื้อ"
-        subtitle="เลือกที่มาของความต้องการและสินค้าที่จะผลิต"
-      />
+      <PageHeading section="จัดซื้อ" parent={{ label: 'แผนจัดซื้อ', to: '/procurement/plans' }} title="สร้างแผนจัดซื้อ" subtitle="เลือกที่มาของข้อมูล วางแผนจำนวนสินค้า แล้วดูวัตถุดิบที่ต้องใช้" />
 
       <StepProgress steps={wizardSteps} current={0} />
 
       <Timeline className="mb-6">
-        <TimelineStep number={1} done={step1Done} markerClassName="top-6 xl:top-7">
+        <TimelineStep number={1} done={lines.length > 0} markerClassName="top-6 xl:top-7">
           <Card>
             <CardHeader
-              title="ที่มาของความต้องการ"
-              subtitle={
-                fromOrders
-                  ? 'ซื้อวัตถุดิบสำหรับคำสั่งซื้อที่ยืนยันแล้ว (โจทย์ 1)'
-                  : 'พนักงานเลือกจากยอดขายที่ผ่านมา สำหรับสต็อกและร้านฝากขาย (โจทย์ 2)'
-              }
+              title="ที่มาของข้อมูล"
+              subtitle={sourceHint[sourceTab]}
               action={
                 <SegmentedControl
                   variant="mask"
-                  aria-label="ที่มาของความต้องการ"
-                  value={source}
-                  onChange={(v: PlanSource) => setSource(v)}
-                  options={[
-                    { value: 'customer_orders', label: 'คำสั่งซื้อลูกค้า' },
-                    { value: 'sales_history', label: 'ประวัติการขาย' },
-                  ]}
+                  aria-label="ที่มาของข้อมูล"
+                  value={sourceTab}
+                  onChange={setSourceTab}
+                  options={(['sales_history', 'customer_orders', 'finished_goods'] as const).map((s) => ({ value: s, label: planSourceLabel[s] }))}
                 />
               }
             />
-            {fromOrders ? (
-              <OrderPicker />
-            ) : (
-              <DateRangeField
-                label="ช่วงวันที่"
-                startDate={new Date(sourceStartDate)}
-                endDate={new Date(sourceEndDate)}
-                onChange={setSourceRange}
-                containerClassName="max-w-xs"
-              />
-            )}
+            {sourceTab === 'sales_history' && <HistoryPicker />}
+            {sourceTab === 'customer_orders' && <OrdersPicker />}
+            {sourceTab === 'finished_goods' && <ProductPicker />}
           </Card>
         </TimelineStep>
 
-        <TimelineStep number={2} done={step2Done} markerClassName="top-6 xl:top-7">
+        <TimelineStep number={2} done={planReady} markerClassName="top-6 xl:top-7">
           <Card>
-            <CardHeader
-              title={fromOrders ? 'สินค้าที่สั่ง' : 'สินค้าที่ขายได้'}
-              subtitle={
-                fromOrders
-                  ? 'ยอดรวมจากคำสั่งซื้อที่เลือก เพิ่มเผื่อได้ถ้าคาดว่าจะมีของเสีย'
-                  : 'เลือกสินค้าที่จะผลิตในรอบนี้ และปรับจำนวนได้ตามต้องการ'
-              }
-            />
-            {productRows.length === 0 ? (
-              <p className="py-4 text-muted">เลือกคำสั่งซื้ออย่างน้อย 1 รายการด้านบน</p>
+            <CardHeader title="แผนการจัดซื้อ" subtitle="จำนวนตั้งต้นมาจากรายการที่เลือกด้านบน แก้ไขได้ตลอด หรือลบสินค้าออกจากแผน" />
+            {lines.length === 0 ? (
+              <p className="py-4 text-muted">ยังไม่มีสินค้าในแผน เลือกจากที่มาของข้อมูลด้านบนแล้วกด "เพิ่มเข้าแผน"</p>
             ) : (
               <DataTable
-                columns={productColumns}
-                rows={productRows}
-                rowKey={(fg) => fg.id}
+                columns={lineColumns}
+                rows={lines}
+                rowKey={(l) => l.finishedGoodId}
                 sortable={false}
-                selected={selectedIds}
-                onSelectedChange={selectProducts}
-                rowSelectLabel={(fg) => `เลือก ${fg.name}`}
+                pageSize={10}
+                paginationVariant="jump"
                 emptyTitle="ไม่มีสินค้า"
+                renderActions={(l) => (
+                  <Button size="sm" variant="danger" iconOnly outlined aria-label="ลบออกจากแผน" tooltip="ลบออกจากแผน" onClick={() => removeLine(l.finishedGoodId)}>
+                    <IconTrash />
+                  </Button>
+                )}
               />
             )}
           </Card>
@@ -221,21 +117,18 @@ export function NewPlanStep1Page() {
 
         <TimelineStep number={3} markerClassName="top-6 xl:top-7">
           <Card>
-            <CardHeader title="ประมาณการวัตถุดิบที่ต้องใช้" subtitle="คำนวณจากสูตรการผลิต (BOM) ของสินค้าที่เลือก" />
+            <CardHeader title="ประมาณการวัตถุดิบที่ต้องใช้" subtitle="คำนวณจากสูตรการผลิต (BOM) ของสินค้าในแผน" />
             {rmRows.length === 0 ? (
-              <p className="py-4 text-muted">เลือกสินค้าอย่างน้อย 1 รายการด้านบนเพื่อดูวัตถุดิบที่ต้องใช้</p>
+              <p className="py-4 text-muted">เพิ่มสินค้าในแผนอย่างน้อย 1 รายการเพื่อดูวัตถุดิบที่ต้องใช้</p>
             ) : (
-              <DataTable columns={rmColumns} rows={rmRows} rowKey={(r) => r.rawMaterialId} sortable={false} emptyTitle="ไม่มีวัตถุดิบ" />
+              <DataTable columns={rmColumns} rows={rmRows} rowKey={(r) => r.rawMaterialId} sortable={false} pageSize={10} paginationVariant="jump" emptyTitle="ไม่มีวัตถุดิบ" />
             )}
           </Card>
         </TimelineStep>
       </Timeline>
 
       <div className="flex justify-end">
-        <Button
-          disabled={lines.length === 0 || (fromOrders && orderIds.length === 0)}
-          onClick={() => navigate({ to: '/procurement/plans/new/step-2' })}
-        >
+        <Button disabled={!planReady} onClick={() => navigate({ to: '/procurement/plans/new/step-2' })}>
           ถัดไป: ตรวจสอบและสร้าง
         </Button>
       </div>

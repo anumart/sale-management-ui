@@ -33,7 +33,7 @@ function chevron(first: boolean, last: boolean): CSSProperties {
 export function StepProgress({ steps, current, className }: StepProgressProps) {
   return (
     <nav aria-label="ขั้นตอน" className={cn('mb-6 overflow-x-auto', className)}>
-      <ol className="flex min-w-max drop-shadow-[0_6px_14px_rgb(60_40_80/0.12)] sm:min-w-0">
+      <ol className="flex min-w-max sm:min-w-0">
         {steps.map((step, i) => {
           const done = i < current
           const active = i === current
@@ -52,7 +52,10 @@ export function StepProgress({ steps, current, className }: StepProgressProps) {
             'block h-full py-2.5',
             first ? 'rounded-l-[0.875rem] pl-5' : 'pl-8',
             last ? 'rounded-r-[0.875rem] pr-5' : 'pr-8',
-            active ? 'grad-theme text-white' : done ? 'bg-theme-soft text-ink-2 [&_svg]:text-theme' : 'bg-surface text-muted',
+            // Finished and pending segments are frosted like the cards, so the page background never shows through unreadably
+            active
+              ? 'grad-theme text-white'
+              : cn('bg-glass-strong [backdrop-filter:var(--glass-filter)]', done ? 'bg-[linear-gradient(var(--color-theme-soft),var(--color-theme-soft))] text-ink [&_svg]:text-theme' : 'text-muted'),
           )
           return (
             <li key={step.label} aria-current={active ? 'step' : undefined} className={cn('min-w-0 flex-1', !first && '-ml-2.5')} style={chevron(first, last)}>

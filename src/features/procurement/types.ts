@@ -2,7 +2,7 @@ export type PlanStatus = 'draft' | 'ordered' | 'archived'
 export type CallStatus = 'not_called' | 'called' | 'confirmed'
 export type PoStatus = 'draft' | 'sent' | 'confirmed' | 'received' | 'cancelled'
 /** sales_history = staff pick from past sales (scenario 2); customer_orders = confirmed email orders (scenario 1) */
-export type PlanSource = 'sales_history' | 'customer_orders'
+export type PlanSource = 'sales_history' | 'customer_orders' | 'finished_goods'
 
 /** Shared category list for both raw materials and finished goods, told apart by `kind`. */
 export type CategoryKind = 'raw_material' | 'finished_good'
@@ -233,6 +233,8 @@ export interface PurchasePlan {
   createdAt: string
   /** Missing on plans created before demand sources existed — treat as sales_history */
   source?: PlanSource
+  /** Every source the plan's lines were pulled from (a plan can mix them) */
+  sources?: PlanSource[]
   customerOrderIds?: string[]
   lines: PlanLine[]
   rawMaterials: PlanRawMaterial[]
@@ -249,7 +251,8 @@ export interface PurchaseOrderLine {
 export interface PurchaseOrder {
   id: string
   poNumber: string
-  planId: string
+  /** Empty for a PO raised by hand (manual) rather than from a purchase plan */
+  planId?: string
   supplierId: string
   status: PoStatus
   totalAmount: number

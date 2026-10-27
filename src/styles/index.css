@@ -385,12 +385,12 @@ html[data-glass='opaque'] {
   --color-glass-edge: rgb(255 255 255 / 0.95);
   --glass-filter: blur(30px);
   --color-field: rgb(255 255 255 / 0.72);
-  --color-field-edge: rgb(255 255 255 / 0.9);
+  --color-field-edge: rgb(var(--tint) / 0.16);
   --color-hover: rgb(var(--tint) / 0.05);
 }
 html[data-glass='frosted'] {
   --color-field: rgb(255 255 255 / 0.38);
-  --color-field-edge: rgb(255 255 255 / 0.6);
+  --color-field-edge: rgb(var(--tint) / 0.16);
   --color-hover: rgb(var(--tint) / 0.06);
 }
 html[data-glass='milky'] {
@@ -399,7 +399,7 @@ html[data-glass='milky'] {
   --color-glass-edge: rgb(255 255 255 / 0.85);
   --glass-filter: blur(26px);
   --color-field: rgb(255 255 255 / 0.55);
-  --color-field-edge: rgb(255 255 255 / 0.8);
+  --color-field-edge: rgb(var(--tint) / 0.16);
   /* Near-white already: a faint tint is the only visible change */
   --color-hover: rgb(var(--tint) / 0.05);
 }
