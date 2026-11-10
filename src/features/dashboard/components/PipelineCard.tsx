@@ -23,14 +23,14 @@ interface Stage {
 export function PipelineCard({ data }: { data: DashboardData }) {
   const stages: Stage[] = [
     { key: 'plan', icon: <IconList />, label: 'แผนจัดซื้อ', count: data.draftPlans.length, unit: 'แผน', note: 'ร่าง ยังไม่สั่งซื้อ', to: '/procurement/plans' },
-    { key: 'po', icon: <IconCart />, label: 'ใบสั่งซื้อ', count: data.draftPos.length + data.openPos.length, unit: 'ใบ', note: formatCurrency(data.openPoValue), to: '/procurement/purchase-orders' },
+    { key: 'po', icon: <IconCart />, label: 'ใบสั่งซื้อ', count: data.openPos.length, unit: 'ใบ', note: formatCurrency(data.openPoValue), to: '/procurement/purchase-orders' },
     {
       key: 'pickup',
       icon: <IconTruck />,
       label: 'รับของ',
       count: data.openRunSheets.length,
       unit: 'ใบวิ่งรถ',
-      note: `${formatNumber(data.pendingPickups.length)} รายการรอจัดรถ`,
+      note: `${formatNumber(data.pendingPickups.length)} ใบรอจัดรถ`,
       to: '/logistics/run-sheets',
     },
     { key: 'plan-prod', icon: <IconClock />, label: 'รอวางแผนผลิต', count: data.awaitingProduction.length, unit: 'คำสั่งซื้อ', note: 'ยืนยันแล้ว ยังไม่ผลิต', to: '/production/planning' },

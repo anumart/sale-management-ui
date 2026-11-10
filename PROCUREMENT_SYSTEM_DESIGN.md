@@ -74,7 +74,7 @@ Purchase Planning Template/Master system ช่วยให้พนักงา
 - ✅ Search & create template from sales history
 - ✅ View raw materials summary by supplier & route
 - ✅ Multi-supplier, multi-route ordering with tracking
-- ✅ Automatic purchase order generation (grouped by Supplier + Route)
+- ✅ Automatic purchase order generation (one PO per Supplier; pickup point per line)
 - ✅ Vehicle & vehicle route management (master data)
 - ✅ Vehicle run sheet generation & printing (pickup trips — several per vehicle/driver per day allowed)
 - ✅ Delivery sheets (route / direct) built as mock UI 2026-10-26 · ⏳ driver's jobs today (`/my-jobs`) — designed, not yet built
@@ -664,11 +664,11 @@ pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive 
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│ 7. Group by Supplier + Route & Create POs       │
+│ 7. Group by Supplier & Create POs               │
 │    - System GROUPS order lines by:              │
 │      • Supplier ID                              │
 │      • Supplier Route ID ← CRITICAL             │
-│    - Creates 1 PO per (Supplier + Route) combo  │
+│    - Creates 1 PO per Supplier (route per line) │
 │    - Each PO:                                   │
 │      - Links to specific supplier route         │
 │      - Contains multiple RMs from that route    │
@@ -689,7 +689,9 @@ pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive 
 └─────────────────────────────────────────────────┘
 ```
 
-### FLOW 2.1: Create Purchase Orders - Grouping by Supplier + Route (Detailed)
+### FLOW 2.1: Create Purchase Orders - Grouping by Supplier (pickup point on the line) (Detailed)
+
+> **Updated 2026-11-09 — one PO per supplier.** A supplier with several pickup points still gets a single PO; the pickup point (`supplierRouteId`) lives on each **PO line**, and the run-sheet link (`runSheetId`, `receivedAt`) is per line too. The PO becomes `received` when its last line is received (a PO spanning two pickup points on different run sheets stays `ordered` until both are confirmed). The (Supplier + Route) grouping examples below are superseded — group by supplier only, keep the route on the line.
 
 ```
 INPUT: Template with selected order lines
@@ -794,7 +796,7 @@ OUTPUT: List of Purchase Orders
 │ 2. Load Vehicle Route & Fetch POs                │
 │    - System loads the selected VehicleRoute      │
 │    - Load ordered stops (Stop 1 → Stop 2 → ...) │
-│    - Query: Find all Draft/Confirmed POs whose  │
+│    - Query: Find all Ordered POs (no run sheet)  │
 │      supplierRouteId matches a stop in route    │
 │    - Group POs by stop (in sequence order)      │
 └────────────────────┬─────────────────────────────┘
@@ -827,16 +829,16 @@ OUTPUT: List of Purchase Orders
                      ↓
 ┌──────────────────────────────────────────────────┐
 │ 5. Mark POs as "Assigned to Run"                 │
-│    - Update PO status/metadata                   │
+│    - Link the PO lines to the run sheet          │
 │    - Link: POs ↔ VehicleRunSheet                 │
-│    - Set status to "Assigned" or "In Transit"    │
+│    - Status stays Ordered (derived from the link)│
 │    - Log: When run sheet was printed/sent        │
 └──────────────────────────────────────────────────┘
 ```
 
 **Note**: This flow is **downstream from PO generation**. POs are already created (FLOW 2 & 2.1); this flow just organizes them for physical pickup by a specific vehicle on a specific date.
 
-**Current implementation status**: Step 5 (auto-updating PO status/linking POs to the VehicleRunSheet) requires POs and Run Sheets to share a real foreign key, which the current build doesn't have yet — see the phasing note at the end of FLOW 3b. In the current build, printing a run sheet only changes the **run sheet's own** status (Draft → Printed); it does not touch any PO's status.
+**Current implementation status (updated 2026-11-08)**: built. Generating a run sheet collects the open POs (`status = ordered`, no `runSheetId`, pickup point on the route, `expectedDeliveryDate` on or before the run date) and sets `runSheetId` on them. The PO status does not change — "on a run sheet" is derived from `runSheetId`. POs are **never sent to the supplier**: the lines and the pickup date were agreed on the phone (FLOW 2.1). A PO can still be edited or cancelled after the sheet is printed, until the receipt is confirmed; a cancelled PO drops off the sheet.
 
 ---
 
@@ -875,12 +877,13 @@ After the driver completes the route and returns with the run sheet (paper copy,
 │      • Auto-calc: Difference (+ or -)            │
 │    - Validate: All items have actual qty input   │
 │      before allowing final confirmation           │
-│    - "Save Draft" button: persists whatever has   │
-│      been typed so far WITHOUT closing the run    │
-│      sheet or requiring every field to be filled  │
-│      — status stays "InProgress". Lets staff       │
-│      split entry across several run sheets or      │
-│      step away mid-entry without losing work        │
+│    - Per-stop "Save" button: writes that stop's    │
+│      lines (every line must be filled in) and      │
+│      marks the stop "Checked". Status stays        │
+│      "InProgress". Editing a checked stop makes    │
+│      it unchecked until saved again. Staff can     │
+│      step away between stops without losing work   │
+│    - Final confirm needs EVERY stop checked        │
 └────────────────────┬─────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────┐
@@ -894,17 +897,17 @@ After the driver completes the route and returns with the run sheet (paper copy,
                      ↓
         Variance acceptable?
          ↙ YES      NO ↘
-    [Confirm]   [Edit quantities, or Save Draft and finish later]
+    [Confirm]   [Edit quantities, or save the stops done so far and finish later]
                      ↓
 ┌──────────────────────────────────────────────────┐
-│ 5. Update PO Received Quantities (TARGET DESIGN)  │
-│    - Per PO, update: receivedQuantity            │
-│    - Update PO status:                           │
-│      • If Actual == Ordered: "Received"          │
-│      • If Actual < Ordered: "PartialReceived"    │
-│      • If Actual > Ordered: "Received" (oversupply)
-│    - Link received data to VehicleRunSheetStop   │
-│    - See phasing note below — not built yet        │
+│ 5. Update PO Lines & Status (built)              │
+│    - Per PO line: receivedRawMaterialId,         │
+│      receivedQuantity, receivedPricePerUnit      │
+│    - Ordered values are kept, never overwritten  │
+│    - Default received = ordered; staff may edit, │
+│      substitute the material, set 0, or add a    │
+│      line that is not on the PO                  │
+│    - All POs on the sheet: Ordered → Received    │
 └────────────────────┬─────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────┐
@@ -924,9 +927,9 @@ After the driver completes the route and returns with the run sheet (paper copy,
 - Route issues (e.g., one stop couldn't be visited)
 
 **Implementation phasing**:
-- **Phase A (built)** — the Run Sheet side of this flow: steps 1–4 and 6, using the actual `RunSheetStatus` enum `Draft → Printed → InProgress → Completed`. The `InProgress` state is reached only via the explicit "Driver Returned — Start Receipt" button (step 2), never automatically. "Save Draft" (step 3) writes actual quantities into the run sheet without changing its status or requiring completion.
-- **Phase B (built)** — Purchase Orders get a real, independent status lifecycle (`Draft → Sent → Confirmed`, plus `Cancelled` from any of those three), driven by explicit actions on the Purchase Orders screen (Send to supplier / Mark supplier confirmed / Cancel). This is **not yet connected** to Run Sheets.
-- **Phase C (future, not yet built)** — step 5 above: linking a Run Sheet's line items to real Purchase Order records (today they're separate mock datasets, joined only by a display-only PO number) so that confirming a receipt automatically rolls up into the linked PO's status (`Received` / `PartialReceived`). This requires giving `PurchaseOrder` a real `supplierRouteId` (so it can be matched to a Run Sheet stop) and needs the PO status enum extended with a `PartiallyReceived` value. Until Phase C ships, a PO only reaches `Received` by being pre-seeded that way — there is no UI action for it yet.
+- **Phase A (built)** — the Run Sheet side of this flow: steps 1–4 and 6, using the `RunSheetStatus` enum `Draft → Printed → InProgress → Completed`. `InProgress` is reached only via the explicit "Driver Returned — Start Receipt" button (step 2). The per-stop "Save" (step 3) writes that stop's receipt values onto its POs and marks the stop checked, without changing any status; the final confirm needs every stop checked.
+- **Phase B (replaced 2026-11-08)** — the old `Draft → Sent → Confirmed` PO lifecycle (send to supplier / supplier confirmed) was removed: POs are not sent to suppliers. See the PO status block in section 13.
+- **Phase C (built 2026-11-08)** — step 5: run sheet stops reference real Purchase Orders (`RunSheetStop.purchaseOrderIds`; a stop's pickup point is a `SupplierRoute` id), the receipt lines are read from and written to the PO lines, and confirming the receipt sets every PO on the sheet to `received`. There is no `PartiallyReceived` status — a shortfall is the difference between ordered and received quantity on the lines.
 
 ---
 
@@ -937,7 +940,7 @@ After the driver completes the route and returns with the run sheet (paper copy,
 **Trigger condition (hard dependency on FLOW 3b)**:
 ```
 Trigger ONLY after: VehicleRunSheet.status == "Completed" for the relevant receipts
-Trigger NEVER before: PO.status == "Confirmed" alone is not enough —
+Trigger NEVER before: PO.status == "Ordered" alone is not enough —
                        actual received qty (not ordered qty) must be known first,
                        because variance can exceed 10%
 
@@ -1192,33 +1195,25 @@ Daily cycle for delivery date **D**:
 }
 ```
 
-### 4. TemplateRawMaterialSupplier - UPDATED
+### 4. PlanOrderLine (replaces TemplateRawMaterialSupplier) - UPDATED 2026-11-08
+
+What staff saved after phoning a supplier: one row per (plan, raw material, supplier, pickup point). A raw material that is not ordered from a supplier has no row (quantity 0 in the UI = skipped). No call status is kept.
 
 ```
 {
   id: UUID
-  templateRMId: UUID (FK)
+  planId: UUID (FK)
+  rawMaterialId: UUID (FK)
   supplierId: UUID (FK)
-  supplierName: string
-  
-  // ROUTE information ← IMPORTANT
-  supplierRouteId: UUID (FK) ← Know which route/garden
-  routeName: string (denormalized - e.g., "Route A - Chiang Mai")
-  routeAddress: string (pickup location)
-  routeContactPerson: string (contact at this route)
-  routePhone: string (phone for this route)
-  
-  // Order details
-  confirmedQuantity: decimal = null (in supplierUnit, confirmed by phone call)
-  orderedQuantity: decimal = null (in supplierUnit)
-  pricePerUnit: decimal = null (per supplierUnit, defaulted from SupplierRawMaterial.pricePerSupplierUnit)
-  totalPrice: decimal (calculated)
-  expectedDeliveryDate: DateTime = null
-  
-  // Link to PO
-  orderLineId: UUID = null (FK to PurchaseOrderLine)
+  supplierRouteId: UUID (FK)    ← pickup point; must belong to supplierId and be active; unique with (planId, rawMaterialId)
+  quantity: int > 0             (supplier unit, e.g. bundle; need 95 flowers at 10/bundle → 10)
+  pricePerSupplierUnit: decimal (defaulted from SupplierRawMaterial.pricePerSupplierUnit, editable)
+  deliveryDate: date            ← pickup date agreed on the call; the same for every line of one supplier in the plan, copied to the PO
+  savedAt: DateTime
 }
 ```
+
+Saved per supplier in one call (replaces that supplier's lines). Over-ordering vs the plan's net requirement is allowed (warning only). Purchase orders are generated by grouping lines on supplierId only (one PO per supplier); each PO line keeps its supplierRouteId.
 
 ### 5. SalesHistory (Reference)
 
@@ -1441,7 +1436,7 @@ Raw materials a supplier sells. Belongs to the **Supplier**, shared by all its r
 }
 ```
 
-**Current implementation**: the running mockup doesn't yet implement the `Cancelled` status above — `RunSheetStatus` is `Draft | Printed | InProgress | Completed`. `InProgress` is reached only via an explicit "Driver Returned — Start Receipt" action (see FLOW 3b), and a "Save Draft" action can update `runSheetStops` while staying `InProgress`, without requiring every item to be filled in first.
+**Current implementation**: the running mockup doesn't yet implement the `Cancelled` status above — `RunSheetStatus` is `Draft | Printed | InProgress | Completed`. `InProgress` is reached only via an explicit "Driver Returned — Start Receipt" action (see FLOW 3b), and a per-stop "Save" action writes the stop's receipt onto its POs and marks it checked while the sheet stays `InProgress`; the final confirm is blocked until every stop is checked.
 
 ### 14. VehicleRunSheetStop (NEW - Stop with Associated POs)
 
@@ -1508,7 +1503,7 @@ PurchaseOrder
 ├─ vehicleRunSheetStopId: UUID (nullable FK - which stop in run sheet)
 ├─
 ├─ // MAIN FIELDS
-├─ status: enum ["Draft", "Assigned", "InTransit", "Received", "PartialReceived", "Cancelled"]
+├─ status: enum ["Ordered", "Received", "Cancelled"]   (target of the earlier Draft/Assigned/InTransit/PartialReceived values was dropped; see the block below)
 ├─ totalAmount: decimal (sum of all line items)
 ├─ expectedDeliveryDate: DateTime (earliest from order lines)
 ├─ createdDate: DateTime
@@ -1533,19 +1528,21 @@ PurchaseOrder
    └─ status: enum ["Pending", "Received", "Partial", "Cancelled"]
 ```
 
-**Current implementation**: the fields above (`supplierRouteId`, `vehicleRunSheetId`/`vehicleRunSheetStopId`, `receivedQuantity`, per-line `status`) describe the **target design** once Run Sheets and Purchase Orders are linked (Phase C — see the phasing note at the end of FLOW 3b). The running mockup today implements a smaller, standalone `PoStatus` enum with no Run Sheet linkage yet:
+**Current implementation (updated 2026-11-08)**: POs have a small lifecycle because they are never sent to suppliers — the pickup date is agreed on the phone before the PO exists (see PlanOrderLine.deliveryDate):
 
 ```
-PoStatus: "draft" | "sent" | "confirmed" | "received" | "cancelled"
+PoStatus: "ordered" | "received" | "cancelled"
 
-Allowed transitions (Phase B):
-  draft     → sent, cancelled
-  sent      → confirmed, cancelled
-  confirmed → cancelled            (confirmed → received is intentionally not
-                                     wired up yet — see Phase C above)
+Allowed transitions:
+  ordered   → received   (only when the run sheet receipt is confirmed)
+  ordered   → cancelled  (confirm dialog; also allowed after the run sheet is printed)
   received, cancelled → (terminal)
+
+PurchaseOrderLine: + supplierRouteId (pickup point) + runSheetId? (set when a run sheet is generated for that pickup point) + receivedAt?
+PurchaseOrder: − supplierRouteId, − runSheetId (moved to the line)   + receivedAt? (when every line is received)
+PurchaseOrderLine (receipt): receivedRawMaterialId?, receivedQuantity?, receivedPricePerUnit?, addedAtReceipt?
 ```
-Driven by explicit row actions on the Purchase Orders screen: **Send to supplier** (draft→sent), **Mark supplier confirmed** (sent→confirmed), **Cancel PO** (→cancelled, behind a confirmation dialog since it's destructive). `received` is not reachable from the UI yet; it only appears on pre-seeded example data until Phase C exists.
+A PO can be edited (pickup date, lines, quantities, prices) while it is `ordered`. The ordered values of a line are never overwritten by the receipt: the received material, quantity and price are stored next to them, so a substitute bought at the garden (the planned material ran out) and any shortfall stay visible. Lines added at receipt have `addedAtReceipt = true` and quantity 0. Row actions on the Purchase Orders screen: view, edit, cancel.
 
 ---
 
@@ -2464,7 +2461,7 @@ AuditLog {                            // append-only
 │ ⚠️ Items partially received: 2 items                │
 │ ❌ Items not received: 1 item                       │
 │                                                      │
-│ [Back] [Save Draft]      [Confirm & Close Run Sheet]
+│ [Back]  (each stop has its own [Save stop])  [Confirm & Close Run Sheet]
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -2478,8 +2475,8 @@ AuditLog {                            // append-only
 - Edit actual quantity → auto-recalc variance
 - Add notes for each stop
 - System flags >5% variance per stop in amber
-- **Save Draft** → persists whatever's been typed so far, stays `InProgress`, does not require every field filled in, does not close the run sheet (lets staff pause mid-entry and resume later)
-- **Confirm & Close Run Sheet** → validates every item has an actual quantity, asks for confirmation, then closes the run sheet (`Completed`). In the current build this only records the receipt on the run sheet itself — it does **not** update any Purchase Order's status yet (see the FLOW 3b phasing note); the confirmation dialog text reflects that honestly rather than promising a PO status update that doesn't happen
+- **Save stop** (one button per stop) → writes that stop's lines onto its POs and sets `checkedAt`; every line of the stop must be filled in; stays `InProgress`, does not close the run sheet. Editing a checked stop clears its "Checked" state until saved again. There is no whole-sheet draft button.
+- **Confirm & Close Run Sheet** → enabled only when every stop is checked (the card shows how many are left); validates every line has a material, quantity and price, asks for confirmation, then closes the run sheet (`Completed`) and sets every PO on it to `Received`, writing the received material / quantity / price onto the PO lines. Received values start from the ordered ones; staff can change the material (substitute), set 0, or add a line that is not on the PO.
 
 ---
 
@@ -2729,8 +2726,8 @@ POST   /api/purchase-orders/generate-from-template
          totalAmount: decimal,
          message: string
        }
-       Note: System automatically groups order lines by (Supplier + Route)
-             Creates 1 PO per unique (Supplier + Route) combo
+       Note: System automatically groups order lines by Supplier
+             Creates 1 PO per supplier; each PO line keeps its own pickup point (supplierRouteId)
              Each PO has specific pickup location & contact
 
 GET    /api/purchase-orders
@@ -2844,7 +2841,7 @@ POST   /api/vehicle-run-sheets/generate
          totalAmount: decimal,
          message: string
        }
-       Note: Automatically finds all Draft/Confirmed POs whose
+       Note: Automatically finds all Ordered POs (no run sheet yet, due on/before the run date) whose
              supplierRouteId matches a stop in the selected route
              Groups POs by stop in sequence order
 
@@ -2870,11 +2867,11 @@ POST   /api/vehicle-run-sheets/{id}/start-receipt
              the record-receipt page.
        Response: VehicleRunSheet
 
-POST   /api/vehicle-run-sheets/{id}/save-receipt-draft
-       Body: { stops: [{ stopId, receivedNotes, lineItems: [{ lineItemId, actualReceivedQuantity }] }] }
-       Note: "Save Draft" action (FLOW 3b step 3). Only allowed when status = "InProgress".
-             Persists partial entries WITHOUT requiring every item filled in and WITHOUT
-             changing status or completedDate.
+POST   /api/vehicle-run-sheets/{id}/stops/{stopId}/save-receipt
+       Body: { receivedNotes, lineItems: [{ lineItemId, receivedRawMaterialId, actualReceivedQuantity, receivedPricePerUnit }] }
+       Note: Per-stop "Save" action (FLOW 3b step 3; replaces the old whole-sheet draft). Only allowed when
+             status = "InProgress". Every line of the stop must be filled in; sets stop.checkedAt. Does NOT
+             change the run sheet status. The final confirm requires every remaining stop to be checked.
        Response: VehicleRunSheet
 
 POST   /api/vehicle-run-sheets/{id}/record-receipt
@@ -3124,7 +3121,7 @@ POST   /api/production-orders/{id}/register-finished-goods
 
 ```csharp
 // Pseudo-code for /api/purchase-orders/generate-from-template
-// Groups by (Supplier + Route) instead of just Supplier
+// Groups by Supplier (updated 2026-11-09: pickup point lives on the PO line, not the PO)
 
 async Task<List<PurchaseOrder>> GenerateFromTemplate(UUID templateId, UUID approvedByUserId)
 {
@@ -3140,14 +3137,14 @@ async Task<List<PurchaseOrder>> GenerateFromTemplate(UUID templateId, UUID appro
   if (orderLines.Any(ol => ol.SupplierRouteId == null))
     throw new Exception("All order lines must have a valid route selected");
   
-  // Step 2: GROUP order lines by (Supplier + Route) ← KEY CHANGE
+  // Step 2: GROUP order lines by Supplier (route stays on each line)
   var groupedBySupplierRoute = orderLines
     .GroupBy(ol => new { ol.SupplierId, ol.SupplierRouteId }) // Group by BOTH!
     .ToList();
   
   var purchaseOrders = new List<PurchaseOrder>();
   
-  // Step 3: CREATE 1 PO per (Supplier + Route) Combo
+  // Step 3: CREATE 1 PO per Supplier
   foreach (var routeGroup in groupedBySupplierRoute)
   {
     var supplier = GetSupplier(routeGroup.Key.SupplierId);
@@ -3382,7 +3379,7 @@ async Task<VehicleRunSheet> GenerateRunSheet(UUID vehicleId, UUID vehicleRouteId
   // Step 4: For each stop, find matching POs
   foreach (var routeStop in routeStops)
   {
-    // Find all Draft/Confirmed POs where supplierRouteId matches this stop
+    // Find all Ordered POs due on/before the run date with a line (no runSheetId yet) whose supplierRouteId matches this stop
     var posForStop = GetPurchaseOrders()
       .Where(po => po.SupplierRouteId == routeStop.SupplierRouteId &&
                    (po.Status == "Draft" || po.Status == "Confirmed") &&
@@ -3502,8 +3499,8 @@ Available → Reserved → Sold
 
 // Purchase Order Generation
 - Cannot proceed if no suppliers are selected for any RM
-- System will group by (Supplier + Route) automatically
-- Creates 1 PO per unique (Supplier + Route) combo
+- System will group by Supplier automatically
+- Creates 1 PO per supplier; each line keeps its pickup point
 - Minimum 1 item per PO required
 - Each PO will have unique pickup location & contact
 
@@ -3565,11 +3562,10 @@ Available → Reserved → Sold
 - All stops must have at least one line item with actual qty
 - Cannot record receipt for future-dated run sheets (only today or past)
 
-// Purchase Order Status Transitions (Phase B — standalone, not yet linked to Run Sheets)
-- draft → sent, cancelled
-- sent → confirmed, cancelled
-- confirmed → cancelled  (confirmed → received not yet wired up; see Phase C)
+// Purchase Order Status Transitions
+- ordered → received (only via run sheet receipt confirmation), cancelled
 - received, cancelled → no further transitions (terminal)
+- Edit (pickup date, lines) allowed only while ordered — also after the run sheet is printed
 - Cancel requires confirmation (destructive/irreversible in this app)
 
 // Production Planning — Target Design (not yet implemented)
@@ -3691,8 +3687,9 @@ Vehicle Run Sheet — Driver Returned / Start Receipt:
 - "Receipt started for {runSheetNumber}"
 - "This run sheet is still out for pickup. Confirm the driver has returned to start recording the receipt."
 
-Vehicle Run Sheet — Save Draft:
-- "Draft saved"
+Vehicle Run Sheet — Save stop:
+- "Stop saved"
+- "Not all stops are checked yet — N stop(s) left" (confirm blocked)
 
 Vehicle Run Sheet Receipt Recording:
 - "Run sheet not found or not in Printed/InProgress status"
@@ -3704,17 +3701,16 @@ Vehicle Run Sheet Receipt Recording:
 - "Stop not found in run sheet"
 - "Line item not found in this stop"
 - "Failed to record receipt. Please try again"
-- "This closes {runSheetNumber} and records the actual received quantities for all {stopCount} stop(s). This cannot be undone." (confirmation dialog — does not claim to update PO status; see Phase C)
+- "This closes {runSheetNumber} and records the receipt for all {stopCount} stop(s). Every purchase order on this run sheet becomes received. This cannot be undone." (confirmation dialog)
 - "Receipt recorded successfully"
 - "Total ordered: {totalOrdered} Kg | Total received: {totalReceived} Kg"
 - "Variance: {variance} Kg ({variancePercentage}%)"
 - "{count} items fully received, {count} partially received, {count} not received"
 
-Purchase Order Status (Phase B):
-- "{poNumber} sent to {supplierName}"
-- "{poNumber} confirmed by {supplierName}"
+Purchase Order Status:
 - "Cancel purchase order?" / "{poNumber} for {supplierName} ({totalAmount}) will be cancelled. This cannot be undone."
 - "{poNumber} cancelled"
+- "{poNumber} updated"
 
 Delivery Sheet:
 - "กรุณาเลือกรถ" / "กรุณาเลือกคนขับ" / "กรุณาเพิ่มจุดส่งอย่างน้อย 1 จุด"
@@ -4062,7 +4058,7 @@ FinishedGoodsBatch N --- 1 ProductionOrder
 
 | Phase | Scope | Status in this repo |
 |-------|-------|----------------------|
-| **Phase 1** — Procurement & Logistics | Purchase templates, PO grouping by Supplier+Route, Vehicle/Route master data, Run Sheet generation & printing, Receipt recording (FLOW 1-3b) | **Built** (frontend, mock-backed) — see Phase A/B notes throughout this doc; Phase C (PO↔RunSheet FK linkage) still outstanding |
+| **Phase 1** — Procurement & Logistics | Purchase templates, PO grouping by Supplier (route per line), Vehicle/Route master data, Run Sheet generation & printing, Receipt recording (FLOW 1-3b) | **Built** (frontend, mock-backed) — see Phase A/B notes throughout this doc; Phase C (PO↔RunSheet FK linkage) still outstanding |
 | **Phase 2** — Production Planning & Manufacturing | AI production planning, production order creation, manufacturing execution, QC & yield tracking, FG inventory (FLOW 4-7) | **Not started** — target design only, this document's new sections |
 | **Phase 3** — Sales & Distribution | Consignment routes & estimates, customer orders (email / phone / platform), delivery sheets, export shipping & documents (FLOW 8) | **Mostly built (mock UI)** — orders, email import, phone/platform key-in, visits, store reports, invoices, consignment routes & estimates, delivery sheets; export documents and export purchase-plan logic not built; export details open |
 | **Phase 4** — Analytics & Optimization | Supplier performance dashboard, yield optimization, variance analysis reports, demand forecasting, cost analysis | **Not started** — future enhancement, no design done |

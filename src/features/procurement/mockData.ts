@@ -12,6 +12,11 @@ import { activeBomEntries, useCatalogStore } from '@/features/catalog/store'
 import { formatRouteAddress } from './utils'
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString()
+/** yyyy-mm-dd of a day offset from today (local), for pickup dates */
+const ymdDay = (offset: number) => {
+  const d = new Date(Date.now() + offset * 86_400_000)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 export const initialSuppliers: Supplier[] = [
   {
@@ -336,12 +341,6 @@ export function buildPlanRawMaterials(lines: PlanLine[]): PlanRawMaterial[] {
       requiredQuantity,
       onHandQuantitySnapshot,
       netRequiredQuantity: Math.max(0, requiredQuantity - onHandQuantitySnapshot),
-      suppliers: suppliersFor(rawMaterialId).map((s) => ({
-        supplierId: s.supplierId,
-        callStatus: 'not_called' as const,
-        confirmedQuantity: null,
-        orderedQuantity: null,
-      })),
     }
   })
 }
@@ -366,36 +365,36 @@ export const initialPlans: PurchasePlan[] = [
         requiredQuantity: 3528,
         onHandQuantitySnapshot: 400,
         netRequiredQuantity: 3128,
-        suppliers: [
-          { supplierId: 'sup-chatuchak', callStatus: 'confirmed', confirmedQuantity: 80, orderedQuantity: 80 },
-          { supplierId: 'sup-bkkwholesale', callStatus: 'confirmed', confirmedQuantity: 45, orderedQuantity: 45 },
-          { supplierId: 'sup-dutch', callStatus: 'confirmed', confirmedQuantity: 32, orderedQuantity: 32 },
-        ],
       },
       {
         rawMaterialId: 'rm-tulip',
         requiredQuantity: 2000,
         onHandQuantitySnapshot: 180,
         netRequiredQuantity: 1820,
-        suppliers: [
-          { supplierId: 'sup-chatuchak', callStatus: 'confirmed', confirmedQuantity: 55, orderedQuantity: 55 },
-          { supplierId: 'sup-dutch', callStatus: 'confirmed', confirmedQuantity: 20, orderedQuantity: 20 },
-        ],
       },
       {
         rawMaterialId: 'rm-sunflower',
         requiredQuantity: 1144,
         onHandQuantitySnapshot: 120,
         netRequiredQuantity: 1024,
-        suppliers: [{ supplierId: 'sup-bkkwholesale', callStatus: 'confirmed', confirmedQuantity: 103, orderedQuantity: 103 }],
+
       },
       {
         rawMaterialId: 'rm-paper',
         requiredQuantity: 494,
         onHandQuantitySnapshot: 50,
         netRequiredQuantity: 444,
-        suppliers: [{ supplierId: 'sup-greenleaf', callStatus: 'confirmed', confirmedQuantity: 1, orderedQuantity: 1 }],
+
       },
+    ],
+    orderLines: [
+      { id: 'ol-08-1', rawMaterialId: 'rm-rose', supplierId: 'sup-chatuchak', supplierRouteId: 'sr-1', quantity: 80, pricePerSupplierUnit: 375, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-2', rawMaterialId: 'rm-rose', supplierId: 'sup-bkkwholesale', supplierRouteId: 'sr-2', quantity: 45, pricePerSupplierUnit: 350, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-3', rawMaterialId: 'rm-rose', supplierId: 'sup-dutch', supplierRouteId: 'sr-3', quantity: 32, pricePerSupplierUnit: 1250, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-4', rawMaterialId: 'rm-tulip', supplierId: 'sup-chatuchak', supplierRouteId: 'sr-1', quantity: 55, pricePerSupplierUnit: 300, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-5', rawMaterialId: 'rm-tulip', supplierId: 'sup-dutch', supplierRouteId: 'sr-3', quantity: 20, pricePerSupplierUnit: 1400, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-6', rawMaterialId: 'rm-sunflower', supplierId: 'sup-bkkwholesale', supplierRouteId: 'sr-2', quantity: 103, pricePerSupplierUnit: 140, deliveryDate: ymdDay(-1), savedAt: day(-19) },
+      { id: 'ol-08-7', rawMaterialId: 'rm-paper', supplierId: 'sup-greenleaf', supplierRouteId: 'sr-4', quantity: 1, pricePerSupplierUnit: 650, deliveryDate: ymdDay(-7), savedAt: day(-19) },
     ],
   },
   {
@@ -417,67 +416,63 @@ export const initialPlans: PurchasePlan[] = [
         requiredQuantity: 4604,
         onHandQuantitySnapshot: 480,
         netRequiredQuantity: 4124,
-        suppliers: [
-          { supplierId: 'sup-chatuchak', callStatus: 'confirmed', confirmedQuantity: 90, orderedQuantity: 90 },
-          { supplierId: 'sup-bkkwholesale', callStatus: 'called', confirmedQuantity: 60, orderedQuantity: null },
-          { supplierId: 'sup-dutch', callStatus: 'not_called', confirmedQuantity: null, orderedQuantity: null },
-        ],
       },
       {
         rawMaterialId: 'rm-tulip',
         requiredQuantity: 380,
         onHandQuantitySnapshot: 220,
         netRequiredQuantity: 160,
-        suppliers: [{ supplierId: 'sup-chatuchak', callStatus: 'not_called', confirmedQuantity: null, orderedQuantity: null }],
+
       },
       {
         rawMaterialId: 'rm-sunflower',
         requiredQuantity: 285,
         onHandQuantitySnapshot: 150,
         netRequiredQuantity: 135,
-        suppliers: [{ supplierId: 'sup-bkkwholesale', callStatus: 'called', confirmedQuantity: 14, orderedQuantity: null }],
+
       },
       {
         rawMaterialId: 'rm-orchid',
         requiredQuantity: 414,
         onHandQuantitySnapshot: 90,
         netRequiredQuantity: 324,
-        suppliers: [
-          { supplierId: 'sup-bkkwholesale', callStatus: 'confirmed', confirmedQuantity: 20, orderedQuantity: 20 },
-          { supplierId: 'sup-greenleaf', callStatus: 'not_called', confirmedQuantity: null, orderedQuantity: null },
-        ],
       },
       {
         rawMaterialId: 'rm-foam',
         requiredQuantity: 68.3,
         onHandQuantitySnapshot: 40,
         netRequiredQuantity: 28.3,
-        suppliers: [{ supplierId: 'sup-greenleaf', callStatus: 'not_called', confirmedQuantity: null, orderedQuantity: null }],
+
       },
       {
         rawMaterialId: 'rm-paper',
         requiredQuantity: 352,
         onHandQuantitySnapshot: 60,
         netRequiredQuantity: 292,
-        suppliers: [{ supplierId: 'sup-greenleaf', callStatus: 'not_called', confirmedQuantity: null, orderedQuantity: null }],
+
       },
+    ],
+    orderLines: [
+      { id: 'ol-09-1', rawMaterialId: 'rm-rose', supplierId: 'sup-chatuchak', supplierRouteId: 'sr-1', quantity: 90, pricePerSupplierUnit: 375, deliveryDate: ymdDay(7), savedAt: day(-1) },
+      { id: 'ol-09-2', rawMaterialId: 'rm-orchid', supplierId: 'sup-bkkwholesale', supplierRouteId: 'sr-2', quantity: 20, pricePerSupplierUnit: 450, deliveryDate: ymdDay(7), savedAt: day(-1) },
     ],
   },
 ]
 
 export const initialPurchaseOrders: PurchaseOrder[] = [
+  // On the printed run sheet rs-1 (logistics store), waiting for the driver to come back
   {
     id: 'po-1',
     poNumber: 'PO-2026-0081',
     planId: 'plan-2026-08',
     supplierId: 'sup-chatuchak',
-    status: 'received',
+    status: 'ordered',
     totalAmount: 80 * 375 + 55 * 300,
-    expectedDeliveryDate: day(-15),
+    expectedDeliveryDate: day(-1),
     createdAt: day(-19),
     lines: [
-      { rawMaterialId: 'rm-rose', quantity: 80, pricePerUnit: 375, total: 80 * 375 },
-      { rawMaterialId: 'rm-tulip', quantity: 55, pricePerUnit: 300, total: 55 * 300 },
+      { rawMaterialId: 'rm-rose', supplierRouteId: 'sr-1', runSheetId: 'rs-1', quantity: 80, pricePerUnit: 375, total: 80 * 375 },
+      { rawMaterialId: 'rm-tulip', supplierRouteId: 'sr-1', runSheetId: 'rs-1', quantity: 55, pricePerUnit: 300, total: 55 * 300 },
     ],
   },
   {
@@ -485,13 +480,13 @@ export const initialPurchaseOrders: PurchaseOrder[] = [
     poNumber: 'PO-2026-0082',
     planId: 'plan-2026-08',
     supplierId: 'sup-bkkwholesale',
-    status: 'confirmed',
+    status: 'ordered',
     totalAmount: 45 * 350 + 103 * 140,
-    expectedDeliveryDate: day(-14),
+    expectedDeliveryDate: day(-1),
     createdAt: day(-19),
     lines: [
-      { rawMaterialId: 'rm-rose', quantity: 45, pricePerUnit: 350, total: 45 * 350 },
-      { rawMaterialId: 'rm-sunflower', quantity: 103, pricePerUnit: 140, total: 103 * 140 },
+      { rawMaterialId: 'rm-rose', supplierRouteId: 'sr-2', runSheetId: 'rs-1', quantity: 45, pricePerUnit: 350, total: 45 * 350 },
+      { rawMaterialId: 'rm-sunflower', supplierRouteId: 'sr-2', runSheetId: 'rs-1', quantity: 103, pricePerUnit: 140, total: 103 * 140 },
     ],
   },
   {
@@ -499,24 +494,60 @@ export const initialPurchaseOrders: PurchaseOrder[] = [
     poNumber: 'PO-2026-0083',
     planId: 'plan-2026-08',
     supplierId: 'sup-dutch',
-    status: 'sent',
+    status: 'ordered',
     totalAmount: 32 * 1250 + 20 * 1400,
-    expectedDeliveryDate: day(-12),
+    expectedDeliveryDate: day(-1),
     createdAt: day(-19),
     lines: [
-      { rawMaterialId: 'rm-rose', quantity: 32, pricePerUnit: 1250, total: 32 * 1250 },
-      { rawMaterialId: 'rm-tulip', quantity: 20, pricePerUnit: 1400, total: 20 * 1400 },
+      { rawMaterialId: 'rm-rose', supplierRouteId: 'sr-3', runSheetId: 'rs-1', quantity: 32, pricePerUnit: 1250, total: 32 * 1250 },
+      { rawMaterialId: 'rm-tulip', supplierRouteId: 'sr-3', runSheetId: 'rs-1', quantity: 20, pricePerUnit: 1400, total: 20 * 1400 },
     ],
   },
+  // Already collected on the completed run sheet rs-2 — the garden had only 1 of 2 left
   {
     id: 'po-4',
     poNumber: 'PO-2026-0084',
     planId: 'plan-2026-08',
     supplierId: 'sup-greenleaf',
-    status: 'draft',
-    totalAmount: 1 * 650,
-    expectedDeliveryDate: day(-10),
+    status: 'received',
+    totalAmount: 2 * 650,
+    expectedDeliveryDate: day(-7),
     createdAt: day(-19),
-    lines: [{ rawMaterialId: 'rm-paper', quantity: 1, pricePerUnit: 650, total: 1 * 650 }],
+    receivedAt: day(-7),
+    lines: [
+      {
+        rawMaterialId: 'rm-paper',
+        supplierRouteId: 'sr-4',
+        runSheetId: 'rs-2',
+        receivedAt: day(-7),
+        quantity: 2,
+        pricePerUnit: 650,
+        total: 2 * 650,
+        receivedRawMaterialId: 'rm-paper',
+        receivedQuantity: 1,
+        receivedPricePerUnit: 650,
+      },
+    ],
+  },
+  // Not on a run sheet yet — due today, so they show up when a run sheet is generated for their routes
+  {
+    id: 'po-5',
+    poNumber: 'PO-2026-0101',
+    supplierId: 'sup-chatuchak',
+    status: 'ordered',
+    totalAmount: 20 * 375,
+    expectedDeliveryDate: day(0),
+    createdAt: day(-1),
+    lines: [{ rawMaterialId: 'rm-rose', supplierRouteId: 'sr-1', quantity: 20, pricePerUnit: 375, total: 20 * 375 }],
+  },
+  {
+    id: 'po-6',
+    poNumber: 'PO-2026-0102',
+    supplierId: 'sup-greenleaf',
+    status: 'ordered',
+    totalAmount: 650,
+    expectedDeliveryDate: day(0),
+    createdAt: day(-1),
+    lines: [{ rawMaterialId: 'rm-paper', supplierRouteId: 'sr-4', quantity: 1, pricePerUnit: 650, total: 650 }],
   },
 ]

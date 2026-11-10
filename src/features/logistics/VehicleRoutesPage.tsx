@@ -4,7 +4,7 @@ import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '@/components/ic
 import { Button, Card, CardHeader, Select, StatusPill } from '@/components/ui'
 import { confirm } from '@/stores/confirmStore'
 import { AddRouteModal } from './AddRouteModal'
-import { pickupPointById, pickupPoints } from './mockData'
+import { getPickupPoints, pickupPointById } from './mockData'
 import { useLogisticsStore } from './store'
 import { dayLabel, type VehicleRoute } from './types'
 
@@ -15,7 +15,7 @@ function RouteStops({ route }: { route: VehicleRoute }) {
   const addStopToRoute = useLogisticsStore((s) => s.addStopToRoute)
 
   const stops = [...route.stops].sort((a, b) => a.sequence - b.sequence)
-  const availablePoints = pickupPoints.filter((p) => !stops.some((s) => s.pickupPointId === p.id))
+  const availablePoints = getPickupPoints().filter((p) => !stops.some((s) => s.pickupPointId === p.id))
 
   const handleRemove = async (stopId: string, label: string) => {
     const ok = await confirm({ title: `ลบจุดจอด?`, message: `"${label}" จะถูกลบออกจาก ${route.routeName}`, confirmLabel: 'ลบ', tone: 'danger' })

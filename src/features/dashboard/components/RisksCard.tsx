@@ -47,7 +47,7 @@ export function RisksCard({ data }: { data: DashboardData }) {
       to: '/procurement/purchase-orders',
     })),
     ...data.varianceLines.slice(0, 3).map((v) => ({
-      key: `var-${v.line.id}`,
+      key: `var-${v.line.key}`,
       level: 'warning' as const,
       title: `รับ${v.line.rawMaterialName} ${v.pct < 0 ? 'ขาด' : 'เกิน'} ${Math.abs(Math.round(v.pct))}%`,
       detail: `${v.runSheet.runSheetNumber} · สั่ง ${formatNumber(v.line.orderedQuantity)} ได้ ${formatNumber(v.line.actualReceivedQuantity ?? 0)} ${v.line.unit} (เกิน ${receiptVariancePercent}%)`,

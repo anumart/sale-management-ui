@@ -1,9 +1,13 @@
 import { create } from 'zustand'
-import { initialPendingOrders, initialVehicleRoutes, initialVehicles } from './mockData'
-import type { PendingOrderLine, ReceiptLineItem, RunSheet, Vehicle, VehicleRoute } from './types'
+import { useProcurementStore } from '@/features/procurement/store'
+import type { PurchaseOrder, PurchaseOrderLine } from '@/features/procurement/types'
+import { ymd } from '@/features/procurement/utils'
+import { initialVehicleRoutes, initialVehicles } from './mockData'
+import type { RunSheet, Vehicle, VehicleRoute } from './types'
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString()
 
+// Seeded run sheets collect the seeded purchase orders of the procurement store (po-1..3 on rs-1, po-4 on rs-2)
 const seedRunSheets: RunSheet[] = [
   {
     id: 'rs-1',
@@ -17,34 +21,9 @@ const seedRunSheets: RunSheet[] = [
     returnedAt: null,
     completedAt: null,
     stops: [
-      {
-        id: 'rss-1',
-        sequence: 1,
-        pickupPointId: 'pp-1',
-        receivedNotes: '',
-        lineItems: [
-          { id: 'rsl-1', poNumber: 'PO-2026-1041', rawMaterialName: 'กุหลาบแดง (ก้าน)', unit: 'ก้าน', orderedQuantity: 2000, pricePerUnit: 15, actualReceivedQuantity: null },
-        ],
-      },
-      {
-        id: 'rss-2',
-        sequence: 2,
-        pickupPointId: 'pp-2',
-        receivedNotes: '',
-        lineItems: [
-          { id: 'rsl-2', poNumber: 'PO-2026-1042', rawMaterialName: 'ทิวลิป (ก้าน)', unit: 'ก้าน', orderedQuantity: 800, pricePerUnit: 14, actualReceivedQuantity: null },
-          { id: 'rsl-3', poNumber: 'PO-2026-1043', rawMaterialName: 'ทานตะวัน (ก้าน)', unit: 'ก้าน', orderedQuantity: 400, pricePerUnit: 14, actualReceivedQuantity: null },
-        ],
-      },
-      {
-        id: 'rss-3',
-        sequence: 3,
-        pickupPointId: 'pp-3',
-        receivedNotes: '',
-        lineItems: [
-          { id: 'rsl-4', poNumber: 'PO-2026-1044', rawMaterialName: 'กล้วยไม้ (ก้าน)', unit: 'ก้าน', orderedQuantity: 300, pricePerUnit: 45, actualReceivedQuantity: null },
-        ],
-      },
+      { id: 'rss-1', sequence: 1, pickupPointId: 'sr-1', purchaseOrderIds: ['po-1'], receivedNotes: '', checkedAt: null },
+      { id: 'rss-2', sequence: 2, pickupPointId: 'sr-2', purchaseOrderIds: ['po-2'], receivedNotes: '', checkedAt: null },
+      { id: 'rss-3', sequence: 3, pickupPointId: 'sr-3', purchaseOrderIds: ['po-3'], receivedNotes: '', checkedAt: null },
     ],
   },
   {
@@ -58,52 +37,111 @@ const seedRunSheets: RunSheet[] = [
     printedAt: day(-7),
     returnedAt: day(-7),
     completedAt: day(-7),
-    stops: [
-      {
-        id: 'rss-4',
-        sequence: 1,
-        pickupPointId: 'pp-4',
-        receivedNotes: 'สวนมีของไม่พอ เหลือ Rose แค่ 850 ต้น',
-        lineItems: [
-          { id: 'rsl-5', poNumber: 'PO-2026-0995', rawMaterialName: 'กุหลาบแดง (ก้าน)', unit: 'ก้าน', orderedQuantity: 1000, pricePerUnit: 12.5, actualReceivedQuantity: 850 },
-        ],
-      },
-    ],
+    stops: [{ id: 'rss-4', sequence: 1, pickupPointId: 'sr-4', purchaseOrderIds: ['po-4'], receivedNotes: 'สวนมีของไม่พอ เหลือกระดาษห่อแค่ 1 ม้วน', checkedAt: day(-7) }],
   },
 ]
 
-export interface RecordReceiptStopInput {
-  stopId: string
-  receivedNotes: string
-  lineItems: { id: string; actualReceivedQuantity: number }[]
+/** What staff typed for one PO line while checking the goods. */
+export interface ReceiptLineInput {
+  poId: string
+  /** Index of the ordered line in its PO; null for a line added at receipt */
+  lineIndex: number | null
+  /** Material actually received (differs from the ordered one for a substitute) */
+  rawMaterialId: string
+  /** null = not filled in yet (drafts only) */
+  quantity: number | null
+  pricePerUnit: number | null
 }
 
-export interface SaveDraftStopInput {
+export interface ReceiptStopInput {
   stopId: string
   receivedNotes: string
-  lineItems: { id: string; actualReceivedQuantity: number | null }[]
+  lines: ReceiptLineInput[]
 }
 
-/** Shared merge logic for recordReceipt/saveReceiptDraft — applies stop-level inputs onto a run sheet's stops. */
-function applyStopInputs(stops: RunSheet['stops'], stopInputs: SaveDraftStopInput[]): RunSheet['stops'] {
-  return stops.map((stop) => {
-    const input = stopInputs.find((s) => s.stopId === stop.id)
-    if (!input) return stop
-    return {
-      ...stop,
-      receivedNotes: input.receivedNotes,
-      lineItems: stop.lineItems.map((li) => {
-        const match = input.lineItems.find((l) => l.id === li.id)
-        return match ? { ...li, actualReceivedQuantity: match.actualReceivedQuantity } : li
+/**
+ * Applies one stop's receipt inputs onto a PO's lines: ordered lines keep what was ordered, lines added at receipt at this pickup
+ * point are replaced by the inputs. `receivedAt` is set only when the receipt is confirmed.
+ */
+function applyLineInputs(lines: PurchaseOrderLine[], inputs: ReceiptLineInput[], routeId: string, runSheetId: string, receivedAt?: string): PurchaseOrderLine[] {
+  const ordered = lines
+    .filter((l) => !l.addedAtReceipt)
+    .map((line, index) => {
+      const input = inputs.find((i) => i.lineIndex === index)
+      if (!input) return line
+      return {
+        ...line,
+        receivedAt,
+        receivedRawMaterialId: input.rawMaterialId,
+        receivedQuantity: input.quantity ?? undefined,
+        receivedPricePerUnit: input.pricePerUnit ?? undefined,
+      }
+    })
+  // Lines added at another stop of the same sheet stay as they are
+  const keptAdded = lines.filter((l) => l.addedAtReceipt && l.supplierRouteId !== routeId)
+  const added = inputs
+    .filter((i) => i.lineIndex === null)
+    .map(
+      (i): PurchaseOrderLine => ({
+        rawMaterialId: i.rawMaterialId,
+        supplierRouteId: routeId,
+        runSheetId,
+        receivedAt,
+        quantity: 0,
+        pricePerUnit: i.pricePerUnit ?? 0,
+        total: 0,
+        receivedRawMaterialId: i.rawMaterialId,
+        receivedQuantity: i.quantity ?? undefined,
+        receivedPricePerUnit: i.pricePerUnit ?? undefined,
+        addedAtReceipt: true,
       }),
+    )
+  return [...ordered, ...keptAdded, ...added]
+}
+
+/** Shared logic for recordReceipt/saveStopReceipt — writes the line inputs onto the POs and returns the stops with their notes. */
+function applyReceiptInputs(runSheet: RunSheet, stopInputs: ReceiptStopInput[], markReceived: boolean, markChecked: boolean): RunSheet['stops'] {
+  const procurement = useProcurementStore.getState()
+  const receivedAt = markReceived ? new Date().toISOString() : undefined
+  // A PO can appear at several stops of one sheet (several pickup points), so lines are accumulated per PO
+  const linesByPo = new Map<string, PurchaseOrderLine[]>()
+  for (const stop of runSheet.stops) {
+    for (const poId of stop.purchaseOrderIds) {
+      const po = procurement.purchaseOrders.find((p) => p.id === poId)
+      if (!po || po.status !== 'ordered') continue
+      const inputs = stopInputs.filter((s) => s.stopId === stop.id).flatMap((s) => s.lines.filter((l) => l.poId === poId))
+      const current = linesByPo.get(poId) ?? po.lines
+      linesByPo.set(poId, inputs.length > 0 ? applyLineInputs(current, inputs, stop.pickupPointId, runSheet.id, receivedAt) : current)
     }
+  }
+  procurement.applyReceipt(
+    [...linesByPo].map(([poId, lines]) => ({ poId, lines })),
+    markReceived,
+  )
+  return runSheet.stops.map((stop) => {
+    const input = stopInputs.find((s) => s.stopId === stop.id)
+    return input ? { ...stop, receivedNotes: input.receivedNotes, ...(markChecked ? { checkedAt: new Date().toISOString() } : {}) } : stop
   })
 }
+
+/** A line that still has to be put on a run sheet. */
+const isPendingLine = (l: PurchaseOrderLine) => !l.runSheetId && !l.receivedAt
+
+/**
+ * Open POs for a route on a run date: ordered, due on or before that date, with at least one line that is not on a sheet yet
+ * and whose pickup point is a stop of the route.
+ */
+export function pendingPurchaseOrders(purchaseOrders: PurchaseOrder[], route: VehicleRoute, runDate: string) {
+  const pointIds = new Set(route.stops.map((s) => s.pickupPointId))
+  return purchaseOrders.filter((po) => po.status === 'ordered' && ymd(po.expectedDeliveryDate) <= ymd(runDate) && po.lines.some((l) => isPendingLine(l) && pointIds.has(l.supplierRouteId)))
+}
+
+/** POs of a stop's pickup point that still have a pending line there. */
+export const pendingAtPoint = (pending: PurchaseOrder[], pickupPointId: string) => pending.filter((po) => po.lines.some((l) => isPendingLine(l) && l.supplierRouteId === pickupPointId))
 
 interface LogisticsState {
   vehicles: Vehicle[]
   vehicleRoutes: VehicleRoute[]
-  pendingOrders: PendingOrderLine[]
   runSheets: RunSheet[]
 
   addVehicle: (vehicle: Vehicle) => void
@@ -114,21 +152,21 @@ interface LogisticsState {
   removeStopFromRoute: (routeId: string, stopId: string) => void
   moveStop: (routeId: string, stopId: string, direction: 'up' | 'down') => void
 
-  /** The vehicle is picked here (not stored on the route); `vehicleRouteId` is the route being run. */
+  /** The vehicle is picked here (not stored on the route); `vehicleRouteId` is the route being run. Collects the matching open POs. */
   generateRunSheet: (vehicleId: string, vehicleRouteId: string, runDate: string) => RunSheet | null
   printRunSheet: (runSheetId: string) => void
   /** Explicit "Driver Returned — Start Receipt" action: printed → in_progress. No-op unless currently printed. */
   startReceipt: (runSheetId: string) => void
-  /** Persists partial receipt entries without closing the run sheet. No-op unless currently in_progress. */
-  saveReceiptDraft: (runSheetId: string, stops: SaveDraftStopInput[]) => void
-  recordReceipt: (runSheetId: string, stops: RecordReceiptStopInput[]) => void
+  /** Saves one stop's receipt onto its POs and marks the stop checked. No-op unless the sheet is in_progress. */
+  saveStopReceipt: (runSheetId: string, stop: ReceiptStopInput) => void
+  /** Confirms the receipt: every PO on the sheet becomes received and the sheet completed. */
+  recordReceipt: (runSheetId: string, stops: ReceiptStopInput[]) => void
 }
 
 /** In-memory mock "backend" for the logistics demo — no API calls, session-only state. */
 export const useLogisticsStore = create<LogisticsState>((set, get) => ({
   vehicles: initialVehicles,
   vehicleRoutes: initialVehicleRoutes,
-  pendingOrders: initialPendingOrders,
   runSheets: seedRunSheets,
 
   addVehicle: (vehicle) => set({ vehicles: [vehicle, ...get().vehicles] }),
@@ -175,24 +213,18 @@ export const useLogisticsStore = create<LogisticsState>((set, get) => ({
     const route = get().vehicleRoutes.find((r) => r.id === vehicleRouteId && r.isActive)
     if (!route) return null
 
-    const matchedIds = new Set<string>()
+    const pending = pendingPurchaseOrders(useProcurementStore.getState().purchaseOrders, route, runDate)
     const stops = [...route.stops]
       .sort((a, b) => a.sequence - b.sequence)
-      .map((stop) => {
-        const matched = get().pendingOrders.filter((po) => po.pickupPointId === stop.pickupPointId)
-        matched.forEach((po) => matchedIds.add(po.id))
-        const lineItems: ReceiptLineItem[] = matched.map((po) => ({
-          id: po.id,
-          poNumber: po.poNumber,
-          rawMaterialName: po.rawMaterialName,
-          unit: po.unit,
-          orderedQuantity: po.orderedQuantity,
-          pricePerUnit: po.pricePerUnit,
-          actualReceivedQuantity: null,
-        }))
-        return { id: `rss-${Date.now()}-${stop.sequence}`, sequence: stop.sequence, pickupPointId: stop.pickupPointId, receivedNotes: '', lineItems }
-      })
-      .filter((stop) => stop.lineItems.length > 0)
+      .map((stop) => ({
+        id: `rss-${Date.now()}-${stop.sequence}`,
+        sequence: stop.sequence,
+        pickupPointId: stop.pickupPointId,
+        purchaseOrderIds: pendingAtPoint(pending, stop.pickupPointId).map((po) => po.id),
+        receivedNotes: '',
+        checkedAt: null,
+      }))
+      .filter((stop) => stop.purchaseOrderIds.length > 0)
 
     if (stops.length === 0) return null
 
@@ -214,10 +246,11 @@ export const useLogisticsStore = create<LogisticsState>((set, get) => ({
       stops,
     }
 
-    set({
-      runSheets: [runSheet, ...get().runSheets],
-      pendingOrders: get().pendingOrders.filter((po) => !matchedIds.has(po.id)),
-    })
+    set({ runSheets: [runSheet, ...get().runSheets] })
+    useProcurementStore.getState().assignLinesToRunSheet(
+      stops.flatMap((s) => s.purchaseOrderIds.map((poId) => ({ poId, supplierRouteId: s.pickupPointId }))),
+      runSheet.id,
+    )
     return runSheet
   },
 
@@ -235,27 +268,22 @@ export const useLogisticsStore = create<LogisticsState>((set, get) => ({
       ),
     }),
 
-  saveReceiptDraft: (runSheetId, stopInputs) =>
-    set({
-      runSheets: get().runSheets.map((rs) =>
-        rs.id === runSheetId && rs.status === 'in_progress' ? { ...rs, stops: applyStopInputs(rs.stops, stopInputs) } : rs,
-      ),
-    }),
+  saveStopReceipt: (runSheetId, stopInput) => {
+    const runSheet = get().runSheets.find((rs) => rs.id === runSheetId)
+    if (!runSheet || runSheet.status !== 'in_progress') return
+    const stops = applyReceiptInputs(runSheet, [stopInput], false, true)
+    set({ runSheets: get().runSheets.map((rs) => (rs.id === runSheetId ? { ...rs, stops } : rs)) })
+  },
 
-  recordReceipt: (runSheetId, stopInputs) =>
+  recordReceipt: (runSheetId, stopInputs) => {
+    const runSheet = get().runSheets.find((rs) => rs.id === runSheetId)
+    if (!runSheet || runSheet.status !== 'in_progress') return
+    const stops = applyReceiptInputs(runSheet, stopInputs, true, true)
+    const completedAt = new Date().toISOString()
     set({
-      runSheets: get().runSheets.map((rs) => {
-        if (rs.id !== runSheetId || (rs.status !== 'printed' && rs.status !== 'in_progress')) return rs
-        const completedAt = new Date().toISOString()
-        return {
-          ...rs,
-          status: 'completed',
-          returnedAt: rs.returnedAt ?? completedAt,
-          completedAt,
-          stops: applyStopInputs(rs.stops, stopInputs),
-        }
-      }),
-    }),
+      runSheets: get().runSheets.map((rs) => (rs.id === runSheetId ? { ...rs, status: 'completed', returnedAt: rs.returnedAt ?? completedAt, completedAt, stops } : rs)),
+    })
+  },
 }))
 
 export function runSheetById(runSheetId: string) {

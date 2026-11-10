@@ -1,6 +1,6 @@
 export type PlanStatus = 'draft' | 'ordered' | 'archived'
-export type CallStatus = 'not_called' | 'called' | 'confirmed'
-export type PoStatus = 'draft' | 'sent' | 'confirmed' | 'received' | 'cancelled'
+/** A PO is raised after the phone call, so it starts as `ordered`; nothing is sent to the supplier. `received` is set when its run sheet's receipt is confirmed. */
+export type PoStatus = 'ordered' | 'received' | 'cancelled'
 /** sales_history = staff pick from past sales (scenario 2); customer_orders = confirmed email orders (scenario 1) */
 export type PlanSource = 'sales_history' | 'customer_orders' | 'finished_goods'
 
@@ -202,14 +202,23 @@ export interface PlanLine {
   plannedQuantity: number
 }
 
-/** One supplier's order line against a raw material inside a plan. */
-export interface PlanRawMaterialSupplier {
+/**
+ * What we agreed to buy from one supplier's pickup point for one raw material, saved after the phone call.
+ * A material can have several lines (one per pickup point); a material not ordered from a supplier has no line.
+ */
+export interface PlanOrderLine {
+  id: string
+  rawMaterialId: string
   supplierId: string
-  callStatus: CallStatus
-  /** Quantity (in supplierUnit) the supplier confirmed they can provide */
-  confirmedQuantity: number | null
-  /** Quantity (in supplierUnit) we decided to actually order */
-  orderedQuantity: number | null
+  /** Pickup point (SupplierRoute) the goods are collected from — a PO is raised per supplier + route */
+  supplierRouteId: string
+  /** Whole number of supplier units (e.g. bundles) to order, > 0 */
+  quantity: number
+  /** Price per 1 supplierUnit; defaults from the supplier's catalogue offer but can be edited */
+  pricePerSupplierUnit: number
+  /** yyyy-mm-dd pickup date agreed on the call — one date per supplier call, copied to the PO */
+  deliveryDate: string
+  savedAt: string
 }
 
 export interface PlanRawMaterial {
@@ -220,7 +229,6 @@ export interface PlanRawMaterial {
   onHandQuantitySnapshot: number
   /** requiredQuantity - onHandQuantitySnapshot, floored at 0 */
   netRequiredQuantity: number
-  suppliers: PlanRawMaterialSupplier[]
 }
 
 export interface PurchasePlan {
@@ -238,14 +246,30 @@ export interface PurchasePlan {
   customerOrderIds?: string[]
   lines: PlanLine[]
   rawMaterials: PlanRawMaterial[]
+  /** Saved supplier orders; progress and PO creation only look at these */
+  orderLines: PlanOrderLine[]
 }
 
 export interface PurchaseOrderLine {
+  /** What was ordered — never changed after the PO is created (edits before receipt replace the line) */
   rawMaterialId: string
+  /** Pickup point (supplier route) this line is collected from — one PO can span several pickup points of the same supplier */
+  supplierRouteId: string
+  /** Run sheet this line is collected on; empty until a run sheet is generated for its pickup point */
+  runSheetId?: string
+  /** Set when the run sheet receipt that covers this line is confirmed */
+  receivedAt?: string
   /** Quantity in the supplier's unit */
   quantity: number
   pricePerUnit: number
   total: number
+  /** Filled when the run sheet is received. Different from `rawMaterialId` = the driver bought a substitute. */
+  receivedRawMaterialId?: string
+  /** In the supplier's unit; 0 = nothing received */
+  receivedQuantity?: number
+  receivedPricePerUnit?: number
+  /** Not on the PO at all — added by staff while checking the goods */
+  addedAtReceipt?: boolean
 }
 
 export interface PurchaseOrder {
@@ -256,7 +280,10 @@ export interface PurchaseOrder {
   supplierId: string
   status: PoStatus
   totalAmount: number
+  /** Pickup date */
   expectedDeliveryDate: string
   createdAt: string
+  /** Set when every line has been received (the PO then becomes `received`) */
+  receivedAt?: string
   lines: PurchaseOrderLine[]
 }

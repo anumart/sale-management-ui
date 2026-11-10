@@ -15,10 +15,12 @@ import {
   type IconProps,
 } from '@/components/icons'
 import { Button, Card, StageTracker, StatusPill, Timeline, TimelineStep } from '@/components/ui'
+import { useProcurementStore } from '@/features/procurement/store'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { toast } from '@/stores/toastStore'
 import { pickupPointById } from './mockData'
 import { useLogisticsStore, vehicleById, vehicleRouteById } from './store'
+import { activeStops, orderedValue, receivedValue, stopLines, type StopLine } from './stopLines'
 import type { RunSheet, RunSheetStatus } from './types'
 import { varianceLabel, varianceTone } from './utils'
 
@@ -30,6 +32,12 @@ const stages: { key: RunSheetStatus; label: string; icon: ComponentType<IconProp
   { key: 'in_progress', label: 'กำลังดำเนินการ', icon: IconTruck },
   { key: 'completed', label: 'เสร็จแล้ว', icon: IconCheck },
 ]
+
+/** Received-vs-ordered pill; an added line has nothing to compare with. */
+export function LineVariance({ line }: { line: StopLine }) {
+  if (line.addedAtReceipt) return <StatusPill tone="info">เพิ่มตอนรับ</StatusPill>
+  return <StatusPill tone={varianceTone(line.orderedQuantity, line.actualReceivedQuantity)}>{varianceLabel(line.orderedQuantity, line.actualReceivedQuantity)}</StatusPill>
+}
 
 function stageTimestamp(runSheet: RunSheet, key: RunSheetStatus) {
   if (key === 'draft') return runSheet.createdAt
@@ -75,6 +83,7 @@ export function RunSheetDetailPage({ runSheetId }: RunSheetDetailPageProps) {
   const runSheet = useLogisticsStore((s) => s.runSheets.find((rs) => rs.id === runSheetId))
   const printRunSheet = useLogisticsStore((s) => s.printRunSheet)
   const startReceipt = useLogisticsStore((s) => s.startReceipt)
+  const purchaseOrders = useProcurementStore((s) => s.purchaseOrders)
 
   if (!runSheet) {
     return (
@@ -89,17 +98,14 @@ export function RunSheetDetailPage({ runSheetId }: RunSheetDetailPageProps) {
 
   const vehicle = vehicleById(runSheet.vehicleId)
   const route = vehicleRouteById(runSheet.vehicleRouteId)
-  const stops = [...runSheet.stops].sort((a, b) => a.sequence - b.sequence)
+  const stops = activeStops(runSheet.stops, purchaseOrders)
   const showReceipt = runSheet.status === 'completed'
 
-  const allLineItems = stops.flatMap((s) => s.lineItems)
+  const allLineItems = stops.flatMap((s) => stopLines(s, purchaseOrders))
   const poCount = new Set(allLineItems.map((li) => li.poNumber)).size
 
-  const orderedTotal = stops.reduce((sum, s) => sum + s.lineItems.reduce((s2, li) => s2 + li.orderedQuantity * li.pricePerUnit, 0), 0)
-  const receivedTotal = stops.reduce(
-    (sum, s) => sum + s.lineItems.reduce((s2, li) => s2 + (li.actualReceivedQuantity ?? 0) * li.pricePerUnit, 0),
-    0,
-  )
+  const orderedTotal = allLineItems.reduce((sum, li) => sum + orderedValue(li), 0)
+  const receivedTotal = allLineItems.reduce((sum, li) => sum + receivedValue(li), 0)
 
   const handlePrint = () => {
     printRunSheet(runSheet.id)
@@ -172,7 +178,8 @@ export function RunSheetDetailPage({ runSheetId }: RunSheetDetailPageProps) {
       <Timeline>
         {stops.map((stop) => {
           const point = pickupPointById(stop.pickupPointId)
-          const stopTotal = stop.lineItems.reduce((sum, li) => sum + li.orderedQuantity * li.pricePerUnit, 0)
+          const lineItems = stopLines(stop, purchaseOrders)
+          const stopTotal = lineItems.reduce((sum, li) => sum + orderedValue(li), 0)
           return (
             <TimelineStep key={stop.id} number={stop.sequence}>
 
@@ -205,22 +212,21 @@ export function RunSheetDetailPage({ runSheetId }: RunSheetDetailPageProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {stop.lineItems.map((li) => (
-                        <tr key={li.id}>
+                      {lineItems.map((li) => (
+                        <tr key={li.key}>
                           <td className="rounded-l-[0.875rem] border-y border-l border-line py-1.5 pr-3 pl-3.5">{li.poNumber}</td>
                           <td className="border-y border-line py-1.5 pr-3">{li.rawMaterialName}</td>
                           <td className="border-y border-line py-1.5 pr-3 tabular-nums whitespace-nowrap">
-                            {li.orderedQuantity.toLocaleString()} {li.unit}
+                            {li.addedAtReceipt ? '—' : `${li.orderedQuantity.toLocaleString()} ${li.unit}`}
                           </td>
                           {showReceipt ? (
                             <>
                               <td className="border-y border-line py-1.5 pr-3 tabular-nums whitespace-nowrap">
-                                {li.actualReceivedQuantity?.toLocaleString() ?? '—'} {li.unit}
+                                {li.actualReceivedQuantity?.toLocaleString() ?? '—'} {li.receivedUnit}
+                                {li.substituted && <span className="block text-muted">แทนด้วย {li.receivedName}</span>}
                               </td>
                               <td className="rounded-r-[0.875rem] border-y border-r border-line py-1.5 pr-3.5">
-                                <StatusPill tone={varianceTone(li.orderedQuantity, li.actualReceivedQuantity)}>
-                                  {varianceLabel(li.orderedQuantity, li.actualReceivedQuantity)}
-                                </StatusPill>
+                                <LineVariance line={li} />
                               </td>
                             </>
                           ) : (

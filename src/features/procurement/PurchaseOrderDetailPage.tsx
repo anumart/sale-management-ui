@@ -1,7 +1,6 @@
-import type { ComponentType, ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import {
-  IconArrowUpRight,
   IconBox,
   IconCalendar,
   IconCheck,
@@ -12,15 +11,18 @@ import {
   IconMapPin,
   IconPhone,
   IconReceipt,
+  IconTruck,
   type IconProps,
 } from '@/components/icons'
 import { Button, Card, CardHeader, StageTracker, StatusPill } from '@/components/ui'
 import { formatCurrency, formatDateTime } from '@/lib/format'
-import { rawMaterialById } from './mockData'
+import { useLogisticsStore } from '@/features/logistics/store'
+import { EditPurchaseOrderModal } from './EditPurchaseOrderModal'
+import { rawMaterialById, supplierRawMaterials } from './mockData'
 import { planById, supplierById, useProcurementStore } from './store'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
-import { poStatusLabel, poStatusTone } from './utils'
+import { isPoEditable, poRunSheetIds, poStatusLabel, poStatusTone } from './utils'
 import type { PoStatus } from './types'
 
 export interface PurchaseOrderDetailPageProps {
@@ -28,13 +30,11 @@ export interface PurchaseOrderDetailPageProps {
 }
 
 const stages: { key: PoStatus; label: string; icon: ComponentType<IconProps> }[] = [
-  { key: 'draft', label: 'ร่าง', icon: IconEdit },
-  { key: 'sent', label: 'ส่งแล้ว', icon: IconArrowUpRight },
-  { key: 'confirmed', label: 'ยืนยันแล้ว', icon: IconCheck },
-  { key: 'received', label: 'รับของแล้ว', icon: IconBox },
+  { key: 'ordered', label: 'สั่งแล้ว รอรับ', icon: IconTruck },
+  { key: 'received', label: 'รับของแล้ว', icon: IconCheck },
 ]
 
-/** Draft → Sent → Confirmed → Received, with the current stage pulsing. Not shown when cancelled. */
+/** Ordered → Received, with the current stage pulsing. Not shown when cancelled. */
 function PoStepper({ status }: { status: PoStatus }) {
   const currentIndex = stages.findIndex((s) => s.key === status)
   return (
@@ -59,6 +59,9 @@ function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: R
 export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) {
   const po = useProcurementStore((s) => s.purchaseOrders.find((p) => p.id === poId))
   const updatePurchaseOrderStatus = useProcurementStore((s) => s.updatePurchaseOrderStatus)
+  const allRunSheets = useLogisticsStore((s) => s.runSheets)
+  const supplierRoutes = useProcurementStore((s) => s.supplierRoutes)
+  const [editing, setEditing] = useState(false)
 
   if (!po) {
     return (
@@ -73,16 +76,12 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
 
   const supplier = supplierById(po.supplierId)
   const plan = planById(po.planId)
+  const sheets = poRunSheetIds(po).flatMap((id) => allRunSheets.find((rs) => rs.id === id) ?? [])
+  // Pickup points this PO is collected from (one per distinct route on its lines)
+  const routes = [...new Set(po.lines.map((l) => l.supplierRouteId))].flatMap((id) => supplierRoutes.find((r) => r.id === id) ?? [])
+  const routeName = (id: string) => supplierRoutes.find((r) => r.id === id)?.routeName ?? '—'
   const supplierName = supplier?.name ?? 'ซัพพลายเออร์'
   const isCancelled = po.status === 'cancelled'
-
-  const handleSend = () => {
-    if (updatePurchaseOrderStatus(po.id, 'sent')) toast.success(`ส่ง ${po.poNumber} ให้ ${supplierName} แล้ว`)
-  }
-
-  const handleConfirmBySupplier = () => {
-    if (updatePurchaseOrderStatus(po.id, 'confirmed')) toast.success(`${supplierName} ยืนยัน ${po.poNumber} แล้ว`)
-  }
 
   const handleCancel = async () => {
     const ok = await confirm({
@@ -95,8 +94,9 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
     if (updatePurchaseOrderStatus(po.id, 'cancelled')) toast.success(`ยกเลิก ${po.poNumber} แล้ว`)
   }
 
-  const canCancel = ['draft', 'sent', 'confirmed'].includes(po.status)
-  const showActionBar = po.status === 'draft' || po.status === 'sent' || canCancel
+  const canChange = isPoEditable(po)
+  const receiving = sheets.some((s) => s.status === 'in_progress')
+  const isReceived = po.lines.some((l) => l.receivedAt)
 
   return (
     <>
@@ -129,10 +129,14 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
               <p className="truncate text-sm text-muted">{plan?.name ?? 'ไม่ได้ผูกกับแผน'}</p>
             </div>
           </div>
-          {supplier?.address && (
-            <div className="flex items-start gap-2 text-control [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:translate-y-0.5 [&>svg]:text-muted">
-              <IconMapPin />
-              <span className="text-muted">{supplier.address}</span>
+          {(routes.length > 0 || supplier?.address) && (
+            <div className="space-y-1.5">
+              {(routes.length > 0 ? routes.map((r) => `${r.routeName} · ${r.address}`) : [supplier?.address ?? '']).map((text) => (
+                <div key={text} className="flex items-start gap-2 text-control [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:translate-y-0.5 [&>svg]:text-muted">
+                  <IconMapPin />
+                  <span className="text-muted">{text}</span>
+                </div>
+              ))}
             </div>
           )}
           <div className="flex items-center justify-between gap-3 border-t border-dashed border-line pt-4">
@@ -154,42 +158,58 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-5 p-6 xl:p-7">
           <Stat icon={<IconReceipt />} label="ยอดรวม" value={formatCurrency(po.totalAmount)} />
-          <Stat icon={<IconCalendar />} label="กำหนดส่ง" value={formatDateTime(po.expectedDeliveryDate)} />
-          <Stat icon={<IconClock />} label="สร้างเมื่อ" value={formatDateTime(po.createdAt)} />
+          <Stat icon={<IconCalendar />} label="วันรับของ" value={formatDateTime(po.expectedDeliveryDate)} />
+          <Stat icon={<IconTruck />} label="ใบวิ่งรถ" value={sheets.length > 0 ? sheets.map((s) => s.runSheetNumber).join(', ') : 'ยังไม่จัดรถ'} />
           <Stat icon={<IconBox />} label="รายการ" value={`วัตถุดิบ ${po.lines.length} รายการ`} />
+          {po.receivedAt && <Stat icon={<IconClock />} label="รับของเมื่อ" value={formatDateTime(po.receivedAt)} />}
         </div>
       </div>
 
-      <Card className={showActionBar ? 'mb-6' : ''}>
+      <Card className={canChange ? 'mb-6' : ''}>
         <CardHeader title="รายการสั่งซื้อ" action={<StatusPill tone={poStatusTone[po.status]}>{poStatusLabel[po.status]}</StatusPill>} />
         <div className="overflow-x-auto">
           <table className="w-full border-separate text-base [border-spacing:0_0.5rem]">
             <thead>
               <tr className="text-left text-muted">
                 <th className="py-2 pr-3 pl-3.5 font-light">วัตถุดิบ</th>
+                <th className="py-2 pr-3 font-light">จุดรับ</th>
                 <th className="py-2 pr-3 font-light">จำนวน</th>
                 <th className="py-2 pr-3 font-light">ราคา / หน่วย</th>
-                <th className="py-2 pr-3.5 font-light">รวม</th>
+                <th className={`py-2 font-light ${isReceived ? 'pr-3' : 'pr-3.5'}`}>รวม</th>
+                {isReceived && <th className="py-2 pr-3.5 font-light">รับจริง</th>}
               </tr>
             </thead>
             <tbody>
-              {po.lines.map((line) => {
+              {po.lines.map((line, index) => {
                 const material = rawMaterialById(line.rawMaterialId)
+                const unit = supplierRawMaterials.find((o) => o.supplierId === po.supplierId && o.rawMaterialId === line.rawMaterialId)?.supplierUnit ?? material?.unit
+                const receivedMaterial = rawMaterialById(line.receivedRawMaterialId ?? line.rawMaterialId)
+                const receivedUnit = supplierRawMaterials.find((o) => o.supplierId === po.supplierId && o.rawMaterialId === (line.receivedRawMaterialId ?? line.rawMaterialId))?.supplierUnit ?? receivedMaterial?.unit
                 return (
-                  <tr key={line.rawMaterialId}>
+                  <tr key={`${line.rawMaterialId}-${index}`}>
                     <td className="rounded-l-[0.875rem] border-y border-l border-line py-3 pr-3 pl-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-soft text-primary-fg [&>svg]:size-4">
                           <IconBox />
                         </span>
                         <span className="font-medium">{material?.nameTh ?? '—'}</span>
+                        {line.addedAtReceipt && <StatusPill tone="info">เพิ่มตอนรับ</StatusPill>}
                       </div>
                     </td>
+                    <td className="border-y border-line py-3 pr-3">{routeName(line.supplierRouteId)}</td>
                     <td className="border-y border-line py-3 pr-3 tabular-nums">
-                      {line.quantity} {material?.unit}
+                      {line.addedAtReceipt ? '—' : `${line.quantity} ${unit}`}
                     </td>
                     <td className="border-y border-line py-3 pr-3 tabular-nums">{formatCurrency(line.pricePerUnit)}</td>
-                    <td className="rounded-r-[0.875rem] border-y border-r border-line py-3 pr-3.5 font-medium tabular-nums">{formatCurrency(line.total)}</td>
+                    <td className={`border-y border-line py-3 font-medium tabular-nums ${isReceived ? 'pr-3' : 'rounded-r-[0.875rem] border-r pr-3.5'}`}>{formatCurrency(line.total)}</td>
+                    {isReceived && (
+                      <td className="rounded-r-[0.875rem] border-y border-r border-line py-3 pr-3.5 tabular-nums">
+                        {line.receivedQuantity ?? 0} {receivedUnit}
+                        {line.receivedRawMaterialId && line.receivedRawMaterialId !== line.rawMaterialId && !line.addedAtReceipt && (
+                          <span className="block text-sm text-warning-fg">แทนด้วย {receivedMaterial?.nameTh}</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 )
               })}
@@ -198,7 +218,7 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
         </div>
       </Card>
 
-      {showActionBar && (
+      {canChange && (
         <div className="sticky bottom-5 z-10 flex flex-wrap items-center justify-between gap-4 rounded-[1.25rem] grad-dark px-6 py-4 text-on-dark shadow-pop">
           <div>
             <p className="text-xs text-ink-2">{po.lines.length} รายการ · {supplierName}</p>
@@ -206,27 +226,19 @@ export function PurchaseOrderDetailPage({ poId }: PurchaseOrderDetailPageProps) 
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {canCancel && (
-              <Button variant="danger" onClick={handleCancel}>
-                <IconClose />
-                ยกเลิกใบสั่งซื้อ
-              </Button>
-            )}
-            {po.status === 'draft' && (
-              <Button variant="accent" onClick={handleSend}>
-                <IconArrowUpRight />
-                ส่งให้ซัพพลายเออร์
-              </Button>
-            )}
-            {po.status === 'sent' && (
-              <Button onClick={handleConfirmBySupplier}>
-                <IconCheck />
-                ซัพพลายเออร์ยืนยันแล้ว
-              </Button>
-            )}
+            <Button variant="danger" onClick={handleCancel}>
+              <IconClose />
+              ยกเลิกใบสั่งซื้อ
+            </Button>
+            <Button onClick={() => setEditing(true)} disabled={receiving} tooltip={receiving ? 'กำลังตรวจรับ แก้ไขที่หน้ารับของ' : undefined}>
+              <IconEdit />
+              แก้ไข
+            </Button>
           </div>
         </div>
       )}
+
+      {editing && <EditPurchaseOrderModal key={po.id} open po={po} onClose={() => setEditing(false)} />}
     </>
   )
 }

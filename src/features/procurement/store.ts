@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import type { CustomerOrder } from '@/features/sales/types'
 import { initialPlans, initialPurchaseOrders, initialSupplierRoutes, initialSuppliers } from './mockData'
-import type { PlanRawMaterialSupplier, PlanSource, PoStatus, PurchaseOrder, PurchasePlan, Supplier, SupplierRoute } from './types'
-import { canTransitionPo } from './utils'
+import type { PlanOrderLine, PlanSource, PoStatus, PurchaseOrder, PurchaseOrderLine, PurchasePlan, Supplier, SupplierRoute } from './types'
+import { canTransitionPo, isPoEditable } from './utils'
 
 interface ProcurementState {
   plans: PurchasePlan[]
@@ -10,17 +10,23 @@ interface ProcurementState {
   suppliers: Supplier[]
   supplierRoutes: SupplierRoute[]
   addPlan: (plan: PurchasePlan) => void
-  updateSupplierLine: (
-    planId: string,
-    rawMaterialId: string,
-    supplierId: string,
-    patch: Partial<PlanRawMaterialSupplier>,
-  ) => void
+  /** Replaces every saved order line of one supplier in a draft plan (rows left at 0 are simply absent). */
+  saveSupplierOrder: (planId: string, supplierId: string, lines: PlanOrderLine[]) => void
   createPurchaseOrders: (planId: string, orders: PurchaseOrder[]) => void
   /** Adds a PO raised by hand, not tied to any plan */
   addPurchaseOrder: (order: PurchaseOrder) => void
   /** Applies a PO status transition if allowed by `poTransitions`. Returns whether it happened. */
   updatePurchaseOrderStatus: (poId: string, status: PoStatus) => boolean
+  /** Replaces the pickup date and lines of a PO that is still `ordered` (also after its run sheet is printed). */
+  updatePurchaseOrder: (poId: string, patch: Pick<PurchaseOrder, 'expectedDeliveryDate' | 'lines'>) => boolean
+  /** Links the lines of each PO that are collected at the given pickup point (and not on a run sheet yet) to the run sheet */
+  assignLinesToRunSheet: (items: { poId: string; supplierRouteId: string }[], runSheetId: string) => void
+  /**
+   * Writes receipt results onto PO lines. `markReceived: false` just saves the entries; `true` also sets the PO `received`
+   * once every one of its lines has been received (a PO spanning several pickup points waits for the last run sheet).
+   * Only `ordered` POs are touched.
+   */
+  applyReceipt: (receipts: { poId: string; lines: PurchaseOrderLine[] }[], markReceived: boolean) => void
   addSupplier: (supplier: Supplier) => void
   toggleSupplierStatus: (supplierId: string) => void
   addSupplierRoute: (route: SupplierRoute) => void
@@ -36,21 +42,11 @@ export const useProcurementStore = create<ProcurementState>((set, get) => ({
 
   addPlan: (plan) => set({ plans: [plan, ...get().plans] }),
 
-  updateSupplierLine: (planId, rawMaterialId, supplierId, patch) =>
+  saveSupplierOrder: (planId, supplierId, lines) =>
     set({
-      plans: get().plans.map((plan) => {
-        if (plan.id !== planId) return plan
-        return {
-          ...plan,
-          rawMaterials: plan.rawMaterials.map((rm) => {
-            if (rm.rawMaterialId !== rawMaterialId) return rm
-            return {
-              ...rm,
-              suppliers: rm.suppliers.map((s) => (s.supplierId === supplierId ? { ...s, ...patch } : s)),
-            }
-          }),
-        }
-      }),
+      plans: get().plans.map((plan) =>
+        plan.id === planId && plan.status === 'draft' ? { ...plan, orderLines: [...plan.orderLines.filter((l) => l.supplierId !== supplierId), ...lines] } : plan,
+      ),
     }),
 
   createPurchaseOrders: (planId, orders) =>
@@ -66,6 +62,39 @@ export const useProcurementStore = create<ProcurementState>((set, get) => ({
     if (!po || !canTransitionPo(po.status, status)) return false
     set({ purchaseOrders: get().purchaseOrders.map((p) => (p.id === poId ? { ...p, status } : p)) })
     return true
+  },
+
+  updatePurchaseOrder: (poId, patch) => {
+    const po = get().purchaseOrders.find((p) => p.id === poId)
+    if (!po || !isPoEditable(po)) return false
+    const totalAmount = patch.lines.reduce((sum, l) => sum + l.total, 0)
+    // A line at a pickup point that is already on a run sheet stays on that sheet
+    const sheetByRoute = new Map(po.lines.filter((l) => l.runSheetId).map((l) => [l.supplierRouteId, l.runSheetId]))
+    const lines = patch.lines.map((l) => ({ ...l, runSheetId: l.runSheetId ?? sheetByRoute.get(l.supplierRouteId) }))
+    set({ purchaseOrders: get().purchaseOrders.map((p) => (p.id === poId ? { ...p, ...patch, lines, totalAmount } : p)) })
+    return true
+  },
+
+  assignLinesToRunSheet: (items, runSheetId) =>
+    set({
+      purchaseOrders: get().purchaseOrders.map((p) => {
+        const routes = items.filter((i) => i.poId === p.id).map((i) => i.supplierRouteId)
+        if (routes.length === 0) return p
+        return { ...p, lines: p.lines.map((l) => (routes.includes(l.supplierRouteId) && !l.runSheetId ? { ...l, runSheetId } : l)) }
+      }),
+    }),
+
+  applyReceipt: (receipts, markReceived) => {
+    const now = new Date().toISOString()
+    set({
+      purchaseOrders: get().purchaseOrders.map((p) => {
+        const receipt = receipts.find((r) => r.poId === p.id)
+        if (!receipt || p.status !== 'ordered') return p
+        if (!markReceived) return { ...p, lines: receipt.lines }
+        const allReceived = receipt.lines.every((l) => l.receivedAt)
+        return allReceived ? { ...p, lines: receipt.lines, status: 'received', receivedAt: now } : { ...p, lines: receipt.lines }
+      }),
+    })
   },
 
   addSupplier: (supplier) => set({ suppliers: [supplier, ...get().suppliers] }),

@@ -3,9 +3,11 @@ import { useMemo, useState } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
 import { Button, Card, CardHeader, DatePicker, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/format'
+import { useProcurementStore } from '@/features/procurement/store'
 import { toast } from '@/stores/toastStore'
 import { pickupPointById } from './mockData'
-import { useLogisticsStore } from './store'
+import { pendingAtPoint, pendingPurchaseOrders, useLogisticsStore } from './store'
+import { stopLines } from './stopLines'
 
 const today = new Date().toISOString().slice(0, 10)
 const runSheetsParent = { label: 'ใบวิ่งรถ', to: '/logistics/run-sheets' }
@@ -14,7 +16,7 @@ export function GenerateRunSheetPage() {
   const navigate = useNavigate()
   const vehicles = useLogisticsStore((s) => s.vehicles)
   const vehicleRoutes = useLogisticsStore((s) => s.vehicleRoutes)
-  const pendingOrders = useLogisticsStore((s) => s.pendingOrders)
+  const purchaseOrders = useProcurementStore((s) => s.purchaseOrders)
   const generateRunSheet = useLogisticsStore((s) => s.generateRunSheet)
 
   const [vehicleId, setVehicleId] = useState('')
@@ -27,14 +29,15 @@ export function GenerateRunSheetPage() {
 
   const preview = useMemo(() => {
     if (!route) return []
+    const pending = pendingPurchaseOrders(purchaseOrders, route, runDate)
     return [...route.stops]
       .sort((a, b) => a.sequence - b.sequence)
-      .map((stop) => ({
-        stop,
-        point: pickupPointById(stop.pickupPointId),
-        orders: pendingOrders.filter((po) => po.pickupPointId === stop.pickupPointId),
-      }))
-  }, [route, pendingOrders])
+      .map((stop) => {
+        const stopOrders = pendingAtPoint(pending, stop.pickupPointId)
+        const orders = stopLines({ id: stop.id, sequence: stop.sequence, pickupPointId: stop.pickupPointId, purchaseOrderIds: stopOrders.map((po) => po.id), receivedNotes: '', checkedAt: null }, purchaseOrders)
+        return { stop, point: pickupPointById(stop.pickupPointId), orders }
+      })
+  }, [route, purchaseOrders, runDate])
 
   const matchedStops = preview.filter((p) => p.orders.length > 0)
   const grandTotal = matchedStops.reduce((sum, s) => sum + s.orders.reduce((s2, o) => s2 + o.orderedQuantity * o.pricePerUnit, 0), 0)
@@ -42,7 +45,7 @@ export function GenerateRunSheetPage() {
   const handleGenerate = () => {
     const runSheet = generateRunSheet(vehicleId, routeId, new Date(runDate).toISOString())
     if (!runSheet) {
-      toast.error('ยังไม่มีใบสั่งซื้อค้างที่ตรงกับเส้นทางนี้')
+      toast.error('ยังไม่มีใบสั่งซื้อที่ถึงกำหนดรับและตรงกับเส้นทางนี้')
       return
     }
     toast.success(`สร้าง ${runSheet.runSheetNumber} แล้ว มี ${runSheet.stops.length} จุดจอด`)
@@ -55,7 +58,7 @@ export function GenerateRunSheetPage() {
         section="Logistics"
         parent={runSheetsParent}
         title="สร้างใบวิ่งรถ"
-        subtitle="เลือกเส้นทาง รถ และวันที่ ระบบจะรวมใบสั่งซื้อที่ตรงกันตามจุดจอดให้อัตโนมัติ"
+        subtitle="เลือกเส้นทาง รถ และวันที่ ระบบจะรวมใบสั่งซื้อที่ถึงกำหนดรับภายในวันนั้นตามจุดจอดให้อัตโนมัติ"
       />
 
       <Card className="mb-6">
@@ -115,7 +118,7 @@ export function GenerateRunSheetPage() {
                       </thead>
                       <tbody>
                         {orders.map((o) => (
-                          <tr key={o.id}>
+                          <tr key={o.key}>
                             <td className="rounded-l-[0.875rem] border-y border-l border-line py-1.5 pr-3 pl-3.5">{o.poNumber}</td>
                             <td className="border-y border-line py-1.5 pr-3">{o.rawMaterialName}</td>
                             <td className="border-y border-line py-1.5 pr-3 tabular-nums">
