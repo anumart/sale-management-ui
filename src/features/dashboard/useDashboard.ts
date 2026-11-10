@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { useLogisticsStore } from '@/features/logistics/store'
+import { stopLines } from '@/features/logistics/stopLines'
 import { getFinishedGoods } from '@/features/catalog/store'
 import { useProcurementStore } from '@/features/procurement/store'
+import { ymd } from '@/features/procurement/utils'
 import { useProductionStore } from '@/features/production/store'
 import type { RmAllocation } from '@/features/production/types'
 import { fgPosition, rmRequirementFor, rmShortages } from '@/features/production/utils'
@@ -21,7 +23,6 @@ export function useDashboard() {
   const plans = useProcurementStore((s) => s.plans)
   const purchaseOrders = useProcurementStore((s) => s.purchaseOrders)
   const runSheets = useLogisticsStore((s) => s.runSheets)
-  const pendingPickups = useLogisticsStore((s) => s.pendingOrders)
   const lines = useProductionStore((s) => s.lines)
   const rmStock = useProductionStore((s) => s.rmStock)
   const productionOrders = useProductionStore((s) => s.orders)
@@ -40,10 +41,11 @@ export function useDashboard() {
 
     // Purchasing
     const draftPlans = plans.filter((p) => p.status === 'draft')
-    const draftPos = purchaseOrders.filter((p) => p.status === 'draft')
-    const sentPos = purchaseOrders.filter((p) => p.status === 'sent')
-    const openPos = purchaseOrders.filter((p) => p.status === 'sent' || p.status === 'confirmed')
-    const latePos = openPos.filter((p) => new Date(p.expectedDeliveryDate).getTime() < now)
+    const openPos = purchaseOrders.filter((p) => p.status === 'ordered')
+    // Ordered but not on any run sheet yet — waiting for a vehicle
+    const pendingPickups = openPos.filter((p) => p.lines.some((l) => !l.runSheetId && !l.receivedAt))
+    // Late = pickup day already passed (a PO due today is not late yet)
+    const latePos = openPos.filter((p) => ymd(p.expectedDeliveryDate) < ymd(new Date(now).toISOString()))
 
     // Pickup & receipt
     const openRunSheets = runSheets.filter((r) => r.status !== 'completed')
@@ -53,7 +55,7 @@ export function useDashboard() {
       .filter((r) => r.status === 'completed')
       .flatMap((r) =>
         r.stops.flatMap((s) =>
-          s.lineItems
+          stopLines(s, purchaseOrders)
             .filter((l) => l.actualReceivedQuantity !== null && l.orderedQuantity > 0)
             .map((l) => ({ runSheet: r, line: l, pct: ((l.actualReceivedQuantity! - l.orderedQuantity) / l.orderedQuantity) * 100 }))
             .filter((v) => Math.abs(v.pct) > receiptVariancePercent),
@@ -100,8 +102,6 @@ export function useDashboard() {
 
     return {
       draftPlans,
-      draftPos,
-      sentPos,
       openPos,
       openPoValue: openPos.reduce((sum, p) => sum + p.totalAmount, 0),
       latePos,
@@ -135,7 +135,7 @@ export function useDashboard() {
       runSheets,
       productionOrders,
     }
-  }, [plans, purchaseOrders, runSheets, pendingPickups, lines, rmStock, productionOrders, batches, customerOrders, imports, visits, reports, invoices, receiptVariancePercent, expiryWarningDays, lowYieldPercent])
+  }, [plans, purchaseOrders, runSheets, lines, rmStock, productionOrders, batches, customerOrders, imports, visits, reports, invoices, receiptVariancePercent, expiryWarningDays, lowYieldPercent])
 }
 
 export type DashboardData = ReturnType<typeof useDashboard>

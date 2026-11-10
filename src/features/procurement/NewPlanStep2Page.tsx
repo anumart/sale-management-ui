@@ -42,6 +42,7 @@ export function NewPlanStep2Page() {
       customerOrderIds: orderIds.length > 0 ? orderIds : undefined,
       lines: planLines,
       rawMaterials,
+      orderLines: [],
     }
     addPlan(plan)
     if (orderIds.length > 0) linkOrdersToPlan(orderIds, plan.id)

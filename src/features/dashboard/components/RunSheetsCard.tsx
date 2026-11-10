@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { IconTruck } from '@/components/icons'
 import { Card, CardHeader, StatusPill } from '@/components/ui'
 import { useLogisticsStore } from '@/features/logistics/store'
+import { orderedValue, stopLines } from '@/features/logistics/stopLines'
+import { useProcurementStore } from '@/features/procurement/store'
 import { runSheetStatusLabel, runSheetStatusTone } from '@/features/logistics/utils'
 import { formatDate } from '@/features/sales/utils'
 import { formatCurrency } from '@/lib/format'
@@ -10,6 +12,7 @@ import type { DashboardData } from '../useDashboard'
 /** Latest run sheets, open ones first — the pickup side of the flow (FLOW 3a/3b). */
 export function RunSheetsCard({ data }: { data: DashboardData }) {
   const vehicles = useLogisticsStore((s) => s.vehicles)
+  const purchaseOrders = useProcurementStore((s) => s.purchaseOrders)
   const rows = [...data.runSheets]
     .sort((a, b) => Number(a.status === 'completed') - Number(b.status === 'completed') || b.runDate.localeCompare(a.runDate))
     .slice(0, 4)
@@ -28,8 +31,7 @@ export function RunSheetsCard({ data }: { data: DashboardData }) {
       <ul className="flex flex-col gap-2.5">
         {rows.map((r) => {
           const vehicle = vehicles.find((v) => v.id === r.vehicleId)
-          const items = r.stops.flatMap((s) => s.lineItems)
-          const value = items.reduce((sum, l) => sum + l.orderedQuantity * l.pricePerUnit, 0)
+          const value = r.stops.flatMap((s) => stopLines(s, purchaseOrders)).reduce((sum, l) => sum + orderedValue(l), 0)
           return (
             <li key={r.id}>
               <Link

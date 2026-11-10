@@ -11,7 +11,7 @@
 
 This document summarizes the **Procurement & Logistics Management System** covering:
 - Purchase planning & template management
-- Purchase order generation (grouped by Supplier + Route)
+- Purchase order generation (one PO per Supplier; pickup point per line)
 - Vehicle & vehicle route management  
 - Vehicle run sheet generation & printing
 - **NEW**: Post-delivery receipt recording with quantity reconciliation
@@ -131,7 +131,7 @@ Supplier A raw materials (shared by all routes):
 
 ### 3.2 Purchase Order Grouping (KEY CONCEPT)
 
-**PO Grouping Logic**: 1 PO per (Supplier + SupplierRoute) combo
+**PO Grouping Logic**: 1 PO per Supplier — the pickup point (SupplierRoute) is kept on each PO line (updated 2026-11-09; the Supplier + Route examples below are superseded)
 
 When creating POs from a template with multiple order lines:
 
@@ -142,7 +142,7 @@ Input order lines:
 ├─ Supplier B - Route A: Apple 800 Kg @ ฿20, Vinegar 100 L @ ฿50
 └─ Supplier C - Route C: Orange 300 Kg @ ฿16
 
-System groups by (Supplier + Route) and creates:
+System groups by Supplier (each line keeps its route) and creates:
 ├─ PO-001: Supplier A - Route A → Apple 500 Kg (฿9,000)
 ├─ PO-002: Supplier A - Route B → Sugar 300 Kg + Banana 200 Kg (฿10,500)
 ├─ PO-003: Supplier B - Route A → Apple 800 Kg + Vinegar 100 L (฿21,000)
@@ -575,7 +575,7 @@ pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive 
 
 **Steps**:
 1. Select Route, Vehicle & Date
-2. System loads the selected VehicleRoute & finds all matching POs (Draft/Confirmed status)
+2. System loads the selected VehicleRoute & finds all matching POs (Ordered, no run sheet yet, due on/before the run date)
 3. Group POs by stop in sequence order
 4. Show preview of run sheet (stops in order with POs bundled)
 5. Print or export as PDF
@@ -604,7 +604,7 @@ pending ──▶ skipped (line_disabled | not_linked | blocked | user_inactive 
    - Display: Ordered Qty (from run sheet)
    - Input: Actual Received Qty
    - Input: Notes if different (e.g., "Grapes damaged", "Not ready")
-   - **Save Draft** available any time — persists entries so far without requiring every field filled in and without changing status (stays "InProgress")
+   - **Save stop** (one button per stop) — writes that stop's entries (all lines must be filled in) and marks it checked, without changing status (stays "InProgress"); confirming the sheet requires every stop checked
 4. System calculates variance (Actual - Ordered)
 5. Review summary:
    - Total ordered vs. total received
@@ -866,30 +866,16 @@ The numbered screens below (Screen 1–10) are the original detailed screen desi
 
 ## 9. Status Lifecycle
 
-### Purchase Order Status — Target Design
+### Purchase Order Status (updated 2026-11-08)
 ```
-Draft → Assigned → InTransit → Received
-                          └─→ PartialReceived
-                          └─→ Cancelled
+Ordered → Received
+    └────→ Cancelled   (confirm dialog)
 ```
 
-- **Draft**: Created but not assigned to any run sheet
-- **Assigned**: Assigned to a run sheet, ready for pickup
-- **InTransit**: Pickup started (run sheet marked "InProgress")
-- **Received**: All items received (actualReceivedQty == orderedQuantity)
-- **PartialReceived**: Some items received (0 < actualReceivedQty < orderedQuantity)
-- **Cancelled**: No items received (actualReceivedQty == 0)
-
-### Purchase Order Status — Current Implementation (Phase B)
-The target lifecycle above requires POs and Run Sheets to be linked by a real foreign key, which doesn't exist yet (Phase C, not built — see §10). Until then, PO status is a smaller, standalone lifecycle driven only by manual actions on the Purchase Orders screen:
-```
-draft → sent → confirmed
-  └────────┴─────────┴──→ cancelled   (any of the three, behind a confirm dialog)
-```
-- **draft → sent**: "Send to supplier" button
-- **sent → confirmed**: "Mark supplier confirmed" button
-- **→ cancelled**: "Cancel PO" button (destructive, asks for confirmation first)
-- **received**: not reachable from the UI yet — only appears on pre-seeded example data until Phase C ships
+- **Ordered**: created from a plan (or by hand) after the phone call; **never sent to the supplier**. It carries the agreed pickup date and the pickup point (supplier route). Editable and cancellable until the receipt is confirmed — also after its run sheet is printed.
+- **Received**: set when the run sheet receipt is confirmed (all POs on the sheet at once). Each line keeps what was ordered and stores what was received (material, quantity, price); a substitute material or an added line is possible. No partial status — a shortfall is the difference on the lines.
+- **Cancelled**: removed from its run sheet.
+- "On a run sheet" is not a status — it is the PO line's `runSheetId` (per pickup point). The PO becomes **Received** when its last line is received.
 
 ### Vehicle Run Sheet Status
 ```
@@ -898,7 +884,7 @@ Draft → Printed → InProgress → Completed
 
 - **Draft**: Created but not printed yet
 - **Printed**: Printed and ready for driver (FLOW 3a complete) — out for pickup, driver not back yet
-- **InProgress**: Driver has returned; reached **only** via the explicit "Driver Returned — Start Receipt" button (never automatically from opening the receipt page). "Save Draft" can update line items repeatedly while staying in this state
+- **InProgress**: Driver has returned; reached **only** via the explicit "Driver Returned — Start Receipt" button (never automatically from opening the receipt page). saving a stop can be repeated while staying in this state (each save marks the stop checked)
 - **Completed**: All receipts recorded and closed (FLOW 3b complete)
 
 ---
@@ -968,17 +954,16 @@ Stop 1 (Supplier A - Route A)
 
 ### Receipt Recording (FLOW 3b)
 - "Driver Returned — Start Receipt" only allowed when status = "Printed"; sets "InProgress" — never automatic
-- "Save Draft" only allowed when status = "InProgress"; does not require every line filled in, does not change status
-- "Confirm & Close Run Sheet" allowed when status is "Printed" or "InProgress"
+- Per-stop "Save" only allowed when status = "InProgress"; every line of that stop must be filled in; sets the stop's checked state; does not change the run sheet status
+- "Confirm & Close Run Sheet" allowed only when status is "InProgress" and every stop is checked
 - All line items must have actualReceivedQuantity input before confirming
 - Cannot record receipt for future-dated run sheets
 - Actual qty must be >= 0
 
-### Purchase Order Status (Phase B)
-- draft → sent, cancelled
-- sent → confirmed, cancelled
-- confirmed → cancelled only (confirmed → received deferred to Phase C)
-- Cancel requires confirmation dialog (destructive/irreversible)
+### Purchase Order Status
+- ordered → received (only via run sheet receipt confirmation), cancelled
+- received, cancelled → no further transitions
+- Edit allowed only while ordered; cancel requires a confirmation dialog (destructive/irreversible)
 
 ### Users & Auth
 - phone required, normalized to 10 digits, unique across all users (incl. inactive) · email optional

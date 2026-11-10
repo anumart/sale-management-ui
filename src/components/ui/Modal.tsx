@@ -26,12 +26,12 @@ export interface ModalProps {
   centered?: boolean
   footer?: ReactNode
   children?: ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   /** Disable closing via backdrop / Esc (e.g. while saving) */
   dismissible?: boolean
 }
 
-const sizes = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' }
+const sizes = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
 
 /** Accessible dialog rendered in a portal (DESIGN.md §6.11). */
 export function Modal({

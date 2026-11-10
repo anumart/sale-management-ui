@@ -16,7 +16,7 @@ export interface Vehicle {
   status: VehicleStatus
 }
 
-/** A pickup point = an existing SupplierRoute ("garden") — see PROCUREMENT_SYSTEM_DESIGN.md Business Context. */
+/** A pickup point = an existing SupplierRoute ("garden"), read from the procurement store — its id is the SupplierRoute id. */
 export interface PickupPoint {
   id: string
   supplierName: string
@@ -41,35 +41,18 @@ export interface VehicleRoute {
   stops: RouteStop[]
 }
 
-/** A purchase order line waiting to be picked up (not yet assigned to a run sheet). */
-export interface PendingOrderLine {
-  id: string
-  poNumber: string
-  pickupPointId: string
-  rawMaterialName: string
-  unit: string
-  orderedQuantity: number
-  pricePerUnit: number
-}
-
-/** Same shape once bundled into a run sheet stop, plus the FLOW 3b receipt fields. */
-export interface ReceiptLineItem {
-  id: string
-  poNumber: string
-  rawMaterialName: string
-  unit: string
-  orderedQuantity: number
-  pricePerUnit: number
-  /** null until FLOW 3b records the actual quantity received */
-  actualReceivedQuantity: number | null
-}
-
+/**
+ * One stop of a run sheet = one pickup point. It points at the purchase orders collected there; their lines (and what was
+ * actually received) are read from the procurement store, so editing a PO after the sheet is printed shows up here too.
+ */
 export interface RunSheetStop {
   id: string
   sequence: number
   pickupPointId: string
-  lineItems: ReceiptLineItem[]
+  purchaseOrderIds: string[]
   receivedNotes: string
+  /** When staff saved this stop's receipt ("ตรวจแล้ว"); null until checked. Every stop must be checked before the sheet can be confirmed. */
+  checkedAt: string | null
 }
 
 export interface RunSheet {

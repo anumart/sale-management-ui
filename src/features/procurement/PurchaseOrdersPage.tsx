@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { IconArrowUpRight, IconCheck, IconClose, IconEye, IconPlus } from '@/components/icons'
+import { IconClose, IconEdit, IconEye, IconPlus } from '@/components/icons'
 import { Button, Card, CardHeader, DataTable, DateRangePicker, FilterSelect, FilterSheet, ListToolbar, MultiSelectList, StatusPill, useFilterSheet, type CriteriaChip, type DataTableColumn } from '@/components/ui'
 import { useCatalogStore } from '@/features/catalog/store'
+import { useLogisticsStore } from '@/features/logistics/store'
 import { useListCriteria } from '@/hooks/useListCriteria'
 import { countBy, dateRangeText, inDateRange, matchesText } from '@/lib/criteria'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { AddPurchaseOrderModal } from './AddPurchaseOrderModal'
+import { EditPurchaseOrderModal } from './EditPurchaseOrderModal'
 import { planById, supplierById, useProcurementStore } from './store'
+import { isPoEditable, poRunSheetIds } from './utils'
 import type { PoStatus, PurchaseOrder } from './types'
 import { poStatusLabel, poStatusTone } from './utils'
 
-const statusOrder: PoStatus[] = ['draft', 'sent', 'confirmed', 'received', 'cancelled']
+const statusOrder: PoStatus[] = ['ordered', 'received', 'cancelled']
 
 interface Criteria {
   query: string
@@ -31,20 +34,18 @@ export function PurchaseOrdersPage() {
   const navigate = useNavigate()
   const purchaseOrders = useProcurementStore((s) => s.purchaseOrders)
   const updatePurchaseOrderStatus = useProcurementStore((s) => s.updatePurchaseOrderStatus)
+  const runSheets = useLogisticsStore((s) => s.runSheets)
+  /** Receipt already started on one of the PO's run sheets — values live on the receipt page, so editing the PO here would wipe them */
+  const receiving = (po: PurchaseOrder) => poRunSheetIds(po).some((id) => runSheets.find((rs) => rs.id === id)?.status === 'in_progress')
+  const runSheetNumbers = (po: PurchaseOrder) => poRunSheetIds(po).map((id) => runSheets.find((rs) => rs.id === id)?.runSheetNumber ?? id)
   const suppliers = useProcurementStore((s) => s.suppliers)
   const plans = useProcurementStore((s) => s.plans)
   const rawMaterials = useCatalogStore((s) => s.rawMaterials)
   const { criteria, update, clear: clearCriteria, page, setPage } = useListCriteria(emptyCriteria)
   const sheet = useFilterSheet()
   const [modalOpen, setModalOpen] = useState(false)
-
-  const handleSend = (po: PurchaseOrder, supplierName: string) => {
-    if (updatePurchaseOrderStatus(po.id, 'sent')) toast.success(`ส่ง ${po.poNumber} ให้ ${supplierName} แล้ว`)
-  }
-
-  const handleConfirmBySupplier = (po: PurchaseOrder, supplierName: string) => {
-    if (updatePurchaseOrderStatus(po.id, 'confirmed')) toast.success(`${supplierName} ยืนยัน ${po.poNumber} แล้ว`)
-  }
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editing = purchaseOrders.find((p) => p.id === editingId)
 
   const handleCancel = async (po: PurchaseOrder, supplierName: string) => {
     const ok = await confirm({
@@ -103,7 +104,7 @@ export function PurchaseOrdersPage() {
       ? [
           {
             key: 'due',
-            label: 'กำหนดส่ง',
+            label: 'วันรับของ',
             value: dateRangeText(criteria.dueFrom, criteria.dueTo),
             onRemove: () => update({ dueFrom: '', dueTo: '' }),
           },
@@ -130,9 +131,27 @@ export function PurchaseOrdersPage() {
     },
     {
       key: 'delivery',
-      label: 'กำหนดส่ง',
+      label: 'วันรับของ',
       sortValue: (po) => po.expectedDeliveryDate,
       render: (po) => <span className="whitespace-nowrap">{formatDateTime(po.expectedDeliveryDate)}</span>,
+    },
+    {
+      key: 'runSheet',
+      label: 'ใบวิ่งรถ',
+      sortValue: (po) => runSheetNumbers(po).join(','),
+      render: (po) => {
+        const numbers = runSheetNumbers(po)
+        const unassigned = po.status === 'ordered' && po.lines.some((l) => !l.runSheetId && !l.receivedAt)
+        if (numbers.length === 0) return <span className="text-muted">ยังไม่จัดรถ</span>
+        return (
+          <div>
+            {numbers.map((n) => (
+              <p key={n}>{n}</p>
+            ))}
+            {unassigned && <p className="text-sm text-muted">ยังมีรายการที่ไม่ได้จัดรถ</p>}
+          </div>
+        )
+      },
     },
   ]
 
@@ -140,7 +159,7 @@ export function PurchaseOrdersPage() {
     <>
       <PageHeading section="จัดซื้อ" title="ใบสั่งซื้อ" />
       <Card>
-        <CardHeader title="ใบสั่งซื้อทั้งหมด" subtitle="การเปลี่ยนสถานะเก็บไว้เฉพาะรอบการใช้งานนี้ ไม่มีการส่งจริงถึงซัพพลายเออร์"
+        <CardHeader title="ใบสั่งซื้อทั้งหมด" subtitle="ใบสั่งซื้อไม่ถูกส่งให้ซัพพลายเออร์ ตกลงกันทางโทรศัพท์แล้ว ระบบจัดเข้าใบวิ่งรถตามวันรับของ"
           action={
             <Button iconOnly round aria-label="สร้างใบสั่งซื้อ" title="สร้างใบสั่งซื้อ" onClick={() => setModalOpen(true)}>
               <IconPlus />
@@ -198,27 +217,15 @@ export function PurchaseOrdersPage() {
                 </Button>
                 <Button
                   size="sm"
-                  variant="accent"
-                  iconOnly
-                  outlined
-                  aria-label="ส่งให้ซัพพลายเออร์"
-                  tooltip="ส่งให้ซัพพลายเออร์"
-                  disabled={po.status !== 'draft'}
-                  onClick={() => handleSend(po, supplier?.name ?? 'ซัพพลายเออร์')}
-                >
-                  <IconArrowUpRight />
-                </Button>
-                <Button
-                  size="sm"
                   variant="primary"
                   iconOnly
                   outlined
-                  aria-label="ซัพพลายเออร์ยืนยันแล้ว"
-                  tooltip="ซัพพลายเออร์ยืนยันแล้ว"
-                  disabled={po.status !== 'sent'}
-                  onClick={() => handleConfirmBySupplier(po, supplier?.name ?? 'ซัพพลายเออร์')}
+                  aria-label="แก้ไข"
+                  tooltip={receiving(po) ? 'กำลังตรวจรับ แก้ไขที่หน้ารับของ' : 'แก้ไข'}
+                  disabled={!isPoEditable(po) || receiving(po)}
+                  onClick={() => setEditingId(po.id)}
                 >
-                  <IconCheck />
+                  <IconEdit />
                 </Button>
                 <Button
                   size="sm"
@@ -227,7 +234,7 @@ export function PurchaseOrdersPage() {
                   outlined
                   aria-label="ยกเลิกใบสั่งซื้อ"
                   tooltip="ยกเลิกใบสั่งซื้อ"
-                  disabled={!['draft', 'sent', 'confirmed'].includes(po.status)}
+                  disabled={!isPoEditable(po)}
                   onClick={() => handleCancel(po, supplier?.name ?? 'ซัพพลายเออร์')}
                 >
                   <IconClose />
@@ -239,6 +246,7 @@ export function PurchaseOrdersPage() {
       </Card>
 
       <AddPurchaseOrderModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      {editing && <EditPurchaseOrderModal key={editing.id} open po={editing} onClose={() => setEditingId(null)} />}
 
       <FilterSheet
         open={sheet.open}
@@ -259,7 +267,7 @@ export function PurchaseOrdersPage() {
           value={criteria.planIds}
           onChange={(planIds) => update({ planIds })}
         />
-        <DateRangePicker label="กำหนดส่ง" from={criteria.dueFrom} to={criteria.dueTo} onChange={(dueFrom, dueTo) => update({ dueFrom, dueTo })} />
+        <DateRangePicker label="วันรับของ" from={criteria.dueFrom} to={criteria.dueTo} onChange={(dueFrom, dueTo) => update({ dueFrom, dueTo })} />
       </FilterSheet>
     </>
   )

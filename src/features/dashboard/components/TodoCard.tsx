@@ -19,8 +19,7 @@ interface Todo {
 /** Work waiting on someone, in flow order (purchase → pickup → production → sales). Rows with nothing to do are hidden. */
 export function TodoCard({ data }: { data: DashboardData }) {
   const todos: Todo[] = [
-    { key: 'po-draft', icon: <IconCart />, label: 'ส่งใบสั่งซื้อให้ซัพพลายเออร์', detail: 'ใบสั่งซื้อที่ยังเป็นร่าง', count: data.draftPos.length, to: '/procurement/purchase-orders' },
-    { key: 'po-sent', icon: <IconCart />, label: 'รอซัพพลายเออร์ยืนยัน', detail: 'ส่งแล้ว ยังไม่ได้รับการยืนยัน', count: data.sentPos.length, to: '/procurement/purchase-orders' },
+    { key: 'po-pending', icon: <IconCart />, label: 'จัดรถไปรับของ', detail: 'ใบสั่งซื้อที่สั่งแล้ว ยังไม่อยู่ในใบวิ่งรถ', count: data.pendingPickups.length, to: '/logistics/run-sheets/generate' },
     { key: 'rs-print', icon: <IconPrinter />, label: 'พิมพ์ใบวิ่งรถ', detail: 'ใบวิ่งรถที่ยังเป็นร่าง', count: data.toPrint.length, to: '/logistics/run-sheets' },
     { key: 'rs-receive', icon: <IconTruck />, label: 'บันทึกรับของ', detail: 'รถออกรับของแล้ว รอบันทึกจำนวนที่ได้รับจริง', count: data.toReceive.length, to: '/logistics/run-sheets', urgent: true },
     { key: 'imports', icon: <IconInbox />, label: 'ตรวจอีเมลสั่งซื้อ', detail: 'ไฟล์จากอีเมลที่ระบบอ่านไม่ครบ', count: data.reviewImports.length, to: '/sales/orders' },
