@@ -19,6 +19,7 @@ import { Route as ProductionSectionsRouteImport } from './routes/production/_sec
 import { Route as SalesSectionsRouteImport } from './routes/sales/_sections'
 import { Route as CatalogSectionsFamiliesRouteImport } from './routes/catalog/_sections/families'
 import { Route as CatalogSectionsRawMaterialsRouteImport } from './routes/catalog/_sections/raw-materials'
+import { Route as ProductionSectionsCapacityRouteImport } from './routes/production/_sections/capacity'
 import { Route as ProductionSectionsFinishedGoodsRouteImport } from './routes/production/_sections/finished-goods'
 import { Route as ProductionSectionsLinesRouteImport } from './routes/production/_sections/lines'
 import { Route as ProductionSectionsPlanningRouteImport } from './routes/production/_sections/planning'
@@ -108,6 +109,12 @@ const CatalogSectionsRawMaterialsRoute =
     id: '/raw-materials',
     path: '/raw-materials',
     getParentRoute: () => CatalogSectionsRoute,
+  } as any)
+const ProductionSectionsCapacityRoute =
+  ProductionSectionsCapacityRouteImport.update({
+    id: '/capacity',
+    path: '/capacity',
+    getParentRoute: () => ProductionSectionsRoute,
   } as any)
 const ProductionSectionsFinishedGoodsRoute =
   ProductionSectionsFinishedGoodsRouteImport.update({
@@ -348,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/sales': typeof SalesSectionsRouteWithChildren
   '/catalog/families': typeof CatalogSectionsFamiliesRoute
   '/catalog/raw-materials': typeof CatalogSectionsRawMaterialsRoute
+  '/production/capacity': typeof ProductionSectionsCapacityRoute
   '/production/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
@@ -398,6 +406,7 @@ export interface FileRoutesByTo {
   '/sales': typeof SalesSectionsRouteWithChildren
   '/catalog/families': typeof CatalogSectionsFamiliesRoute
   '/catalog/raw-materials': typeof CatalogSectionsRawMaterialsRoute
+  '/production/capacity': typeof ProductionSectionsCapacityRoute
   '/production/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/lines': typeof ProductionSectionsLinesRoute
   '/production/planning': typeof ProductionSectionsPlanningRoute
@@ -449,6 +458,7 @@ export interface FileRoutesById {
   '/sales/_sections': typeof SalesSectionsRouteWithChildren
   '/catalog/_sections/families': typeof CatalogSectionsFamiliesRoute
   '/catalog/_sections/raw-materials': typeof CatalogSectionsRawMaterialsRoute
+  '/production/_sections/capacity': typeof ProductionSectionsCapacityRoute
   '/production/_sections/finished-goods': typeof ProductionSectionsFinishedGoodsRoute
   '/production/_sections/lines': typeof ProductionSectionsLinesRoute
   '/production/_sections/planning': typeof ProductionSectionsPlanningRoute
@@ -501,6 +511,7 @@ export interface FileRouteTypes {
     | '/sales'
     | '/catalog/families'
     | '/catalog/raw-materials'
+    | '/production/capacity'
     | '/production/finished-goods'
     | '/production/lines'
     | '/production/planning'
@@ -551,6 +562,7 @@ export interface FileRouteTypes {
     | '/sales'
     | '/catalog/families'
     | '/catalog/raw-materials'
+    | '/production/capacity'
     | '/production/finished-goods'
     | '/production/lines'
     | '/production/planning'
@@ -601,6 +613,7 @@ export interface FileRouteTypes {
     | '/sales/_sections'
     | '/catalog/_sections/families'
     | '/catalog/_sections/raw-materials'
+    | '/production/_sections/capacity'
     | '/production/_sections/finished-goods'
     | '/production/_sections/lines'
     | '/production/_sections/planning'
@@ -723,6 +736,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/catalog/raw-materials'
       preLoaderRoute: typeof CatalogSectionsRawMaterialsRouteImport
       parentRoute: typeof CatalogSectionsRoute
+    }
+    '/production/_sections/capacity': {
+      id: '/production/_sections/capacity'
+      path: '/capacity'
+      fullPath: '/production/capacity'
+      preLoaderRoute: typeof ProductionSectionsCapacityRouteImport
+      parentRoute: typeof ProductionSectionsRoute
     }
     '/production/_sections/finished-goods': {
       id: '/production/_sections/finished-goods'
@@ -1076,6 +1096,7 @@ const ProcurementSectionsRouteWithChildren =
   ProcurementSectionsRoute._addFileChildren(ProcurementSectionsRouteChildren)
 
 interface ProductionSectionsRouteChildren {
+  ProductionSectionsCapacityRoute: typeof ProductionSectionsCapacityRoute
   ProductionSectionsFinishedGoodsRoute: typeof ProductionSectionsFinishedGoodsRoute
   ProductionSectionsLinesRoute: typeof ProductionSectionsLinesRoute
   ProductionSectionsPlanningRoute: typeof ProductionSectionsPlanningRoute
@@ -1084,6 +1105,7 @@ interface ProductionSectionsRouteChildren {
 }
 
 const ProductionSectionsRouteChildren: ProductionSectionsRouteChildren = {
+  ProductionSectionsCapacityRoute: ProductionSectionsCapacityRoute,
   ProductionSectionsFinishedGoodsRoute: ProductionSectionsFinishedGoodsRoute,
   ProductionSectionsLinesRoute: ProductionSectionsLinesRoute,
   ProductionSectionsPlanningRoute: ProductionSectionsPlanningRoute,

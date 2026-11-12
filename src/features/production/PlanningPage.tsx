@@ -1,242 +1,152 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { useMemo } from 'react'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { IconEye, IconFactory } from '@/components/icons'
-import { Alert, Button, Card, CardHeader, DataTable, DeltaBadge, Select, StatusPill, TextField, type DataTableColumn } from '@/components/ui'
-import { getFinishedGoods } from '@/features/catalog/store'
-import { finishedGoodById, rawMaterialById, salesHistory } from '@/features/procurement/mockData'
-import { createProductionForOrder, describeFailures } from '@/features/sales/actions'
-import { customerById, useSalesStore } from '@/features/sales/store'
-import type { CustomerOrder } from '@/features/sales/types'
-import { channelLabel, channelTone, formatDate, orderStage } from '@/features/sales/utils'
+import { IconFactory, IconTrash } from '@/components/icons'
+import { Alert, Button, Card, CardHeader, DataTable, SegmentedControl, StatusPill, TextField, Timeline, TimelineStep, type DataTableColumn } from '@/components/ui'
+import { finishedGoodById, rawMaterialById } from '@/features/procurement/mockData'
+import { useSalesStore } from '@/features/sales/store'
+import { formatDate, orderStage } from '@/features/sales/utils'
 import { toast } from '@/stores/toastStore'
-import { DeliveryDayDemand } from './DeliveryDayDemand'
+import { checkPlan } from './planAllocation'
+import { EstimatePicker, ManualPicker, OrderPicker } from './PlanSourcePickers'
+import { planSourceLabel, usePlanStore, type PlanLine, type PlanSourceTab } from './planStore'
 import { useProductionStore } from './store'
-import type { RawMaterialStock } from './types'
-import { fgPosition, rmRequirementFor, rmShortages, roundQty } from './utils'
+import { defaultLineFor, roundQty } from './utils'
 
-function StockTable() {
-  const rmStock = useProductionStore((s) => s.rmStock)
-  const rows = Object.values(rmStock)
-
-  const columns: DataTableColumn<RawMaterialStock>[] = [
-    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => (rawMaterialById(r.rawMaterialId)?.nameTh ?? '').toLowerCase(), render: (r) => <span className="font-medium">{rawMaterialById(r.rawMaterialId)?.nameTh}</span> },
-    { key: 'onHand', label: 'คงคลัง', sortValue: (r) => r.onHand, render: (r) => <span className="tabular-nums">{roundQty(r.onHand)} {rawMaterialById(r.rawMaterialId)?.unit}</span> },
-    { key: 'allocated', label: 'จองแล้ว', sortValue: (r) => r.allocated, render: (r) => <span className="tabular-nums">{roundQty(r.allocated)} {rawMaterialById(r.rawMaterialId)?.unit}</span> },
-    {
-      key: 'available',
-      label: 'พร้อมใช้',
-      sortValue: (r) => r.onHand - r.allocated,
-      render: (r) => <span className="tabular-nums font-medium">{roundQty(r.onHand - r.allocated)} {rawMaterialById(r.rawMaterialId)?.unit}</span>,
-    },
-  ]
-
-  return (
-    <Card className="mb-6">
-      <CardHeader title="สต็อกวัตถุดิบ" subtitle="รับเข้าจากใบวิ่งรถ ใบสั่งผลิตทุกใบด้านล่างจะตรวจกับยอดพร้อมใช้" />
-      <DataTable columns={columns} rows={rows} rowKey={(r) => r.rawMaterialId} emptyTitle="ยังไม่มีข้อมูลสต็อกวัตถุดิบ" />
-    </Card>
-  )
+const sourceHint: Record<PlanSourceTab, string> = {
+  estimate: 'เลือกวันส่ง ประเมินและยืนยันยอดลงร้านของแต่ละสาย แล้วเพิ่มยอดที่ยืนยันแล้วเข้ารายการ',
+  orders: 'เลือกคำสั่งซื้อที่ยืนยันแล้วตามวันส่ง ระบบเพิ่มสินค้าและจำนวนของทุกรายการในใบให้',
+  manual: 'เลือกสินค้าและจำนวนเอง เพื่อผลิตเข้าสต็อกหรือให้ร้านฝากขายโดยไม่มีคำสั่งซื้อ',
 }
 
-/** Scenario 1: confirmed email orders that still have lines without a production order. */
-function CustomerOrderQueue() {
-  const navigate = useNavigate()
-  const orders = useSalesStore((s) => s.orders)
-  const productionOrders = useProductionStore((s) => s.orders)
-  const rmStock = useProductionStore((s) => s.rmStock)
-
-  const queue = orders.filter(
-    (o) => o.status === 'confirmed' && o.lines.some((l) => !productionOrders.some((p) => p.customerOrderId === o.id && p.finishedGoodId === l.finishedGoodId)),
-  )
-
-  const missingLines = (o: CustomerOrder) => o.lines.filter((l) => l.finishedGoodId && !productionOrders.some((p) => p.customerOrderId === o.id && p.finishedGoodId === l.finishedGoodId))
-  const shortages = (o: CustomerOrder) => {
-    const need = new Map<string, number>()
-    missingLines(o).forEach((l) => rmRequirementFor(l.finishedGoodId!, l.quantity).forEach((r) => need.set(r.rawMaterialId, (need.get(r.rawMaterialId) ?? 0) + r.quantity)))
-    return rmShortages(
-      [...need].map(([rawMaterialId, quantity]) => ({ rawMaterialId, quantity })),
-      rmStock,
-    )
-  }
-
-  const produce = (o: CustomerOrder) => {
-    const res = createProductionForOrder(o)
-    if (res.created.length) toast.success(`${o.orderNumber}: สร้าง ${res.created.join(', ')} แล้ว`)
-    if (res.failed.length) toast.error(describeFailures(res.failed))
-  }
-
-  const columns: DataTableColumn<CustomerOrder>[] = [
-    { key: 'number', label: 'เลขที่', sortValue: (o) => o.orderNumber, render: (o) => <span className="font-medium">{o.orderNumber}</span> },
-    {
-      key: 'customer',
-      label: 'ลูกค้า',
-      sortValue: (o) => customerById(o.customerId)?.name ?? '',
-      render: (o) => (
-        <span className="flex flex-wrap items-center gap-2">
-          {customerById(o.customerId)?.name}
-          <StatusPill tone={channelTone[o.channel]}>{channelLabel[o.channel]}</StatusPill>
-        </span>
-      ),
-    },
-    { key: 'deliver', label: 'ส่งภายใน', sortValue: (o) => o.requestedDeliveryDate, render: (o) => formatDate(o.requestedDeliveryDate) },
-    {
-      key: 'products',
-      label: 'ต้องผลิต',
-      sortable: false,
-      render: (o) => (
-        <span className="text-sm">
-          {missingLines(o)
-            .map((l) => `${finishedGoodById(l.finishedGoodId!)?.name} × ${l.quantity}`)
-            .join(', ')}
-        </span>
-      ),
-    },
-    {
-      key: 'rm',
-      label: 'วัตถุดิบ',
-      sortValue: (o) => shortages(o).length,
-      render: (o) => {
-        const short = shortages(o)
-        return short.length === 0 ? <StatusPill tone="success">มีพอ</StatusPill> : <StatusPill tone="danger">ไม่พอ: {short.map((s) => rawMaterialById(s.rawMaterialId)?.nameTh).join(', ')}</StatusPill>
-      },
-    },
-  ]
-
-  return (
-    <Card className="mb-6">
-      <CardHeader title="คำสั่งซื้อที่ต้องผลิต" subtitle="ผลิตให้ลูกค้ารายนั้น (อีเมล โทร หรือ platform) LOT ที่ผลิตเสร็จจะถูกจองไว้ให้คำสั่งซื้อ" />
-      <DataTable
-        columns={columns}
-        rows={queue}
-        rowKey={(o) => o.id}
-        defaultSort={{ key: 'deliver', dir: 'asc' }}
-        emptyTitle="ไม่มีคำสั่งซื้อที่ยืนยันแล้วรอผลิต"
-        emptyDescription="ยืนยันคำสั่งซื้อที่นำเข้าวันนี้ได้ที่ ขาย → คำสั่งซื้อ"
-        renderActions={(o) => (
-          <>
-            <Button size="sm" variant="soft" iconOnly outlined aria-label="ดูคำสั่งซื้อ" tooltip="ดูคำสั่งซื้อ" onClick={() => navigate({ to: '/sales/orders/$orderId', params: { orderId: o.id } })}>
-              <IconEye />
-            </Button>
-            <Button size="sm" variant="primary" iconOnly outlined aria-label="สร้างใบสั่งผลิต" tooltip="สร้างใบสั่งผลิต" disabled={shortages(o).length > 0} onClick={() => produce(o)}>
-              <IconFactory />
-            </Button>
-          </>
-        )}
-      />
-    </Card>
-  )
+interface StockRow {
+  rawMaterialId: string
+  onHand: number
+  allocated: number
+  available: number
+  /** Taken by the lines in the plan */
+  used: number
+  remaining: number
 }
 
-/** Scenario 2: staff pick what to make from sales history, for stock or for a consignment shop. */
-function ManualProductionForm() {
-  const navigate = useNavigate()
-  const lines = useProductionStore((s) => s.lines)
-  const rmStock = useProductionStore((s) => s.rmStock)
-  const batches = useProductionStore((s) => s.batches)
-  const createProductionOrder = useProductionStore((s) => s.createProductionOrder)
-  const customers = useSalesStore((s) => s.customers)
-
-  const [finishedGoodId, setFinishedGoodId] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [customerId, setCustomerId] = useState('')
-
-  const qty = Number(quantity)
-  // One line in the factory: production orders always go on it
-  const line = lines[0]
-  const lineDown = !line || line.status !== 'available'
-  const requirement = finishedGoodId && qty > 0 ? rmRequirementFor(finishedGoodId, qty) : []
-  const short = rmShortages(requirement, rmStock)
-  const sales = salesHistory.find((s) => s.finishedGoodId === finishedGoodId)
-  const position = finishedGoodId ? fgPosition(batches, finishedGoodId) : null
-
-  const submit = () => {
-    const res = createProductionOrder({ finishedGoodId, quantity: qty, productionLineId: line?.id ?? '', source: 'manual', customerOrderId: null, customerId: customerId || null })
-    if (!res.ok) {
-      toast.error(res.error)
-      return
-    }
-    toast.success(`สร้าง ${res.order.orderNumber} แล้ว จองวัตถุดิบเรียบร้อย`)
-    navigate({ to: '/production/orders/$orderId', params: { orderId: res.order.id } })
-  }
-
-  return (
-    <Card>
-      <CardHeader title="พนักงานเลือกผลิตเอง" subtitle="เลือกจากประวัติการขาย ผลิตเข้าสต็อกหรือให้ร้านฝากขาย โดยไม่มีคำสั่งซื้อจากลูกค้า" />
-      <div className="grid gap-x-4 sm:grid-cols-3">
-        <Select label="สินค้า" placeholder="เลือกสินค้า" value={finishedGoodId} onChange={setFinishedGoodId} options={getFinishedGoods(true).map((fg) => ({ value: fg.id, label: fg.name }))} />
-        <TextField label="จำนวน" type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-        <Select
-          label="สำหรับร้าน (ไม่บังคับ)"
-          placeholder="เข้าสต็อก ยังไม่ระบุร้าน"
-          value={customerId}
-          onChange={setCustomerId}
-          options={customers.filter((c) => c.type === 'consignment').map((c) => ({ value: c.id, label: c.name }))}
-        />
-      </div>
-
-      {finishedGoodId && (
-        <div className="mb-5 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <span>
-            <span className="text-muted">ขายเดือนที่แล้ว </span>
-            <span className="font-medium tabular-nums">{sales?.quantitySold ?? 0}</span> {sales && <DeltaBadge value={sales.trendPct} className="ml-1" />}
-          </span>
-          <span>
-            <span className="text-muted">ในคลัง </span>
-            <span className="font-medium tabular-nums">{position?.available ?? 0}</span>
-            <span className="text-muted"> พร้อมส่ง · {position?.reserved ?? 0} จองให้คำสั่งซื้อ</span>
-          </span>
-        </div>
-      )}
-
-      {requirement.length > 0 && (
-        <ul className="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {requirement.map((r) => {
-            const s = short.find((x) => x.rawMaterialId === r.rawMaterialId)
-            const material = rawMaterialById(r.rawMaterialId)
-            const available = roundQty((rmStock[r.rawMaterialId]?.onHand ?? 0) - (rmStock[r.rawMaterialId]?.allocated ?? 0))
-            return (
-              <li key={r.rawMaterialId} className="flex items-center justify-between gap-3 rounded-[0.875rem] border border-line px-3.5 py-2.5">
-                <span className="font-medium">{material?.nameTh}</span>
-                <span className="text-sm tabular-nums">
-                  {r.quantity} / {available} {material?.unit} {s ? <StatusPill tone="danger">ไม่พอ</StatusPill> : <StatusPill tone="success">พอ</StatusPill>}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      {lineDown && (
-        <Alert tone="warning" title={`${line?.name ?? 'ไลน์ผลิต'} อยู่ระหว่างซ่อมบำรุง`} className="mb-5" action={<Link to="/production/lines" className="text-sm font-medium text-primary-fg hover:underline">ดูไลน์ผลิต</Link>}>
-          สร้างใบสั่งผลิตใหม่ได้เมื่อไลน์กลับมาใช้งาน
-        </Alert>
-      )}
-
-      {short.length > 0 && (
-        <Alert tone="danger" title="วัตถุดิบไม่พอ" className="mb-5" action={<Link to="/procurement/plans/new/step-1" className="text-sm font-medium text-primary-fg hover:underline">วางแผนจัดซื้อ</Link>}>
-          ลดจำนวนลง หรือจัดซื้อเพิ่มก่อน
-        </Alert>
-      )}
-
-      <div className="flex justify-end">
-        <Button disabled={!finishedGoodId || !(qty > 0) || lineDown || short.length > 0} onClick={submit}>
-          <IconFactory />
-          สร้างใบสั่งผลิต
-        </Button>
-      </div>
-    </Card>
-  )
-}
+const kindTone = { estimate: 'info', orders: 'accent', manual: 'neutral' } as const
 
 export function PlanningPage() {
   const orders = useSalesStore((s) => s.orders)
   const productionOrders = useProductionStore((s) => s.orders)
+  const rmStock = useProductionStore((s) => s.rmStock)
+  const productionLines = useProductionStore((s) => s.lines)
+  const { sourceTab, lines, setSourceTab, setQuantity, removeLine, removeLines } = usePlanStore()
+
   const toConfirm = orders.filter((o) => ['needs_review', 'to_confirm'].includes(orderStage(o, productionOrders))).length
+  const { perLine, totals } = useMemo(() => checkPlan(lines, rmStock, productionLines), [lines, rmStock, productionLines])
+
+  const readyLines = lines.filter((l) => perLine[l.key]?.ok)
+  const blockedLines = lines.filter((l) => !perLine[l.key]?.ok)
+  const shortTotals = totals.filter((t) => t.remaining < 0)
+  const nameOf = (rmId: string) => rawMaterialById(rmId)?.nameTh ?? rmId
+
+  const submit = (targets: PlanLine[]) => {
+    const { createProductionOrder, lines: productionLinesNow } = useProductionStore.getState()
+    const done: string[] = []
+    const created: string[] = []
+    for (const l of targets) {
+      const line = defaultLineFor(l.finishedGoodId, productionLinesNow)
+      const name = finishedGoodById(l.finishedGoodId)?.name
+      if (!line) {
+        toast.error(`${name}: ไม่มีไลน์ผลิตที่ว่าง`)
+        continue
+      }
+      const res = createProductionOrder({
+        finishedGoodId: l.finishedGoodId,
+        quantity: l.quantity,
+        productionLineId: line.id,
+        source: l.source,
+        customerOrderId: l.customerOrderId,
+        customerId: l.customerId,
+        consignmentRouteId: l.consignmentRouteId,
+        consignmentEstimateId: l.consignmentEstimateId,
+        deliveryDate: l.deliveryDate,
+      })
+      if (res.ok) {
+        done.push(l.key)
+        created.push(res.order.orderNumber)
+      } else toast.error(`${l.label} ${name}: ${res.error}`)
+    }
+    removeLines(done)
+    if (created.length) toast.success(`สร้างใบสั่งผลิต ${created.length} ใบแล้ว (${created.join(', ')})`)
+  }
+
+  const lineColumns: DataTableColumn<PlanLine>[] = [
+    { key: 'name', label: 'สินค้า', render: (l) => <span className="font-medium">{finishedGoodById(l.finishedGoodId)?.name}</span> },
+    {
+      key: 'origin',
+      label: 'ที่มา',
+      render: (l) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusPill tone={kindTone[l.kind]}>{l.label}</StatusPill>
+          {l.deliveryDate && <span className="text-sm text-muted">ส่ง {formatDate(l.deliveryDate)}</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'quantity',
+      label: 'จำนวนที่สั่งผลิต',
+      render: (l) => (
+        <div className="flex items-center gap-2">
+          <TextField
+            type="number"
+            min={0}
+            aria-label={`จำนวนที่สั่งผลิตของ ${finishedGoodById(l.finishedGoodId)?.name}`}
+            value={l.quantity}
+            onChange={(e) => setQuantity(l.key, Math.max(0, Number(e.target.value)))}
+            className="w-28"
+            containerClassName="mb-0"
+          />
+          <span className="text-muted">{finishedGoodById(l.finishedGoodId)?.unit}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'วัตถุดิบ',
+      render: (l) => {
+        const c = perLine[l.key]
+        if (!c) return null
+        if (!(l.quantity > 0)) return <StatusPill tone="gray">ใส่จำนวน</StatusPill>
+        if (c.noLine) return <StatusPill tone="danger">ไม่มีไลน์ว่าง</StatusPill>
+        return c.ok ? <StatusPill tone="success">พอ</StatusPill> : <StatusPill tone="danger">ไม่พอ: {c.missing.map(nameOf).join(', ')}</StatusPill>
+      },
+    },
+  ]
+
+  /** Every raw material in stock, with what the plan below would take from it (updates as lines are added or edited). */
+  const stockRows: StockRow[] = Object.values(rmStock).map((s) => {
+    const used = totals.find((t) => t.rawMaterialId === s.rawMaterialId)?.required ?? 0
+    const available = roundQty(s.onHand - s.allocated)
+    return { rawMaterialId: s.rawMaterialId, onHand: s.onHand, allocated: s.allocated, available, used, remaining: roundQty(available - used) }
+  })
+  const unitOf = (rmId: string) => rawMaterialById(rmId)?.unit ?? ''
+  const qtyText = (rmId: string, n: number) => `${roundQty(n)} ${unitOf(rmId)}`
+
+  const stockColumns: DataTableColumn<StockRow>[] = [
+    { key: 'name', label: 'วัตถุดิบ', sortValue: (r) => nameOf(r.rawMaterialId), render: (r) => <span className="font-medium">{nameOf(r.rawMaterialId)}</span> },
+    { key: 'onHand', label: 'คงคลัง', sortValue: (r) => r.onHand, cellClassName: 'tabular-nums', render: (r) => qtyText(r.rawMaterialId, r.onHand) },
+    { key: 'allocated', label: 'จองแล้ว', sortValue: (r) => r.allocated, cellClassName: 'tabular-nums', render: (r) => qtyText(r.rawMaterialId, r.allocated) },
+    { key: 'available', label: 'พร้อมใช้', sortValue: (r) => r.available, cellClassName: 'tabular-nums font-medium', render: (r) => qtyText(r.rawMaterialId, r.available) },
+    { key: 'used', label: 'ใช้ตามรายการด้านล่าง', sortValue: (r) => r.used, cellClassName: 'tabular-nums', render: (r) => (r.used > 0 ? qtyText(r.rawMaterialId, r.used) : <span className="text-muted">—</span>) },
+    { key: 'remaining', label: 'เหลือหลังผลิต', sortValue: (r) => r.remaining, cellClassName: 'tabular-nums font-medium', render: (r) => qtyText(r.rawMaterialId, r.remaining) },
+    {
+      key: 'status',
+      label: 'สถานะ',
+      sortValue: (r) => r.remaining,
+      render: (r) => (r.used === 0 ? <span className="text-muted">ยังไม่ได้ใช้</span> : r.remaining < 0 ? <StatusPill tone="danger">ขาด {-r.remaining}</StatusPill> : <StatusPill tone="success">พอ</StatusPill>),
+    },
+  ]
 
   return (
     <>
-      <PageHeading section="ผลิต" title="วางแผนผลิต" subtitle="สิ่งที่จะผลิตมาจากยอดประเมินของสายฝากขาย คำสั่งซื้อที่ยืนยันแล้ว หรือจากพนักงานเลือกตามประวัติการขาย" />
+      <PageHeading section="ผลิต" title="วางแผนผลิต" subtitle="เลือกที่มาของสิ่งที่จะผลิต เพิ่มลงรายการ ตรวจวัตถุดิบ แล้วสั่งผลิตรวดเดียว" />
 
       {toConfirm > 0 && (
         <Alert
@@ -249,14 +159,88 @@ export function PlanningPage() {
             </Link>
           }
         >
-          จะแสดงที่นี่เมื่อพนักงานยืนยันแล้ว
+          จะเลือกได้ในแท็บ "คำสั่งซื้อตามวันส่ง" เมื่อพนักงานยืนยันแล้ว
         </Alert>
       )}
 
-      <DeliveryDayDemand />
-      <StockTable />
-      <CustomerOrderQueue />
-      <ManualProductionForm />
+      <Card className="mb-6">
+        <CardHeader
+          title="สต็อกวัตถุดิบ"
+          subtitle="คำนวณใหม่ทันทีเมื่อเพิ่มหรือแก้รายการที่จะสั่งผลิตด้านล่าง รายการบนได้วัตถุดิบก่อน"
+          action={
+            <Link to="/production/capacity" className="text-sm font-medium text-primary-fg hover:underline">
+              ดูว่าผลิตอะไรได้จากวัตถุดิบที่มี
+            </Link>
+          }
+        />
+        {shortTotals.length > 0 && (
+          <Alert tone="danger" title={`วัตถุดิบไม่พอ ${shortTotals.length} รายการ: ${shortTotals.map((t) => nameOf(t.rawMaterialId)).join(', ')}`} className="mb-4" action={<Link to="/procurement/plans/new/step-1" className="text-sm font-medium text-primary-fg hover:underline">วางแผนจัดซื้อ</Link>}>
+            ลดจำนวนหรือลบรายการ หรือสั่งเฉพาะรายการที่พอก่อน แล้วจัดซื้อเพิ่ม
+          </Alert>
+        )}
+        <DataTable columns={stockColumns} rows={stockRows} rowKey={(r) => r.rawMaterialId} emptyTitle="ยังไม่มีข้อมูลสต็อกวัตถุดิบ" rowClassName={(r) => (r.remaining < 0 ? 'bg-danger/5' : '')} />
+      </Card>
+
+      <Timeline className="mb-6">
+        <TimelineStep number={1} done={lines.length > 0} markerClassName="top-6 xl:top-7">
+          <Card>
+            <CardHeader
+              title="ที่มาของสิ่งที่จะผลิต"
+              subtitle={sourceHint[sourceTab]}
+              action={
+                <SegmentedControl
+                  variant="mask"
+                  aria-label="ที่มา"
+                  value={sourceTab}
+                  onChange={setSourceTab}
+                  options={(['estimate', 'orders', 'manual'] as const).map((s) => ({ value: s, label: planSourceLabel[s] }))}
+                />
+              }
+            />
+            {sourceTab === 'estimate' && <EstimatePicker />}
+            {sourceTab === 'orders' && <OrderPicker />}
+            {sourceTab === 'manual' && <ManualPicker />}
+          </Card>
+        </TimelineStep>
+
+        <TimelineStep number={2} done={lines.length > 0 && blockedLines.length === 0} markerClassName="top-6 xl:top-7">
+          <Card>
+            <CardHeader title="รายการที่จะสั่งผลิต" subtitle="1 บรรทัดต่อ 1 ใบสั่งผลิต จำนวนตั้งต้นมาจากที่มาด้านบน แก้ได้ เช่น ลดลงเมื่อใช้สต็อกเดิม" />
+            {lines.length === 0 ? (
+              <p className="py-4 text-muted">ยังไม่มีรายการ เลือกจากที่มาด้านบนแล้วกด "เพิ่มเข้ารายการ"</p>
+            ) : (
+              <DataTable
+                columns={lineColumns}
+                rows={lines}
+                rowKey={(l) => l.key}
+                sortable={false}
+                pageSize={10}
+                paginationVariant="jump"
+                emptyTitle="ไม่มีรายการ"
+                renderActions={(l) => (
+                  <Button size="sm" variant="danger" iconOnly outlined aria-label="ลบออกจากรายการ" tooltip="ลบออกจากรายการ" onClick={() => removeLine(l.key)}>
+                    <IconTrash />
+                  </Button>
+                )}
+              />
+            )}
+          </Card>
+        </TimelineStep>
+
+      </Timeline>
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {lines.length > 0 && blockedLines.length > 0 && readyLines.length > 0 && (
+          <Button variant="soft" onClick={() => submit(readyLines)}>
+            <IconFactory />
+            สั่งเฉพาะรายการที่พอ ({readyLines.length})
+          </Button>
+        )}
+        <Button disabled={lines.length === 0 || blockedLines.length > 0} onClick={() => submit(lines)}>
+          <IconFactory />
+          สั่งผลิตทั้งหมด ({lines.length})
+        </Button>
+      </div>
     </>
   )
 }

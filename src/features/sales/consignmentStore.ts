@@ -1,8 +1,7 @@
 import { create } from 'zustand'
-import { getFinishedGoods } from '@/features/catalog/store'
 import type { DayOfWeek } from '@/features/logistics/types'
 import { initialEstimates, initialRoutes } from './consignmentMock'
-import { buildEstimateLines, dayOfWeekOf, routeRunsOn } from './estimates'
+import { dayOfWeekOf, routeRunsOn, suggestQuantity } from './estimates'
 import { useSalesStore } from './store'
 import type { ConsignmentEstimate, ConsignmentRoute } from './types'
 
@@ -27,6 +26,9 @@ interface ConsignmentState {
 
   createEstimate: (routeId: string, deliveryDate: string) => Result<{ id: string }>
   setEstimateQty: (estimateId: string, customerId: string, finishedGoodId: string, quantity: number) => void
+  /** Adds a product to one shop (starts at the system suggestion) */
+  addEstimateLine: (estimateId: string, customerId: string, finishedGoodId: string) => void
+  removeEstimateLine: (estimateId: string, customerId: string, finishedGoodId: string) => void
   /** Puts every line back to the system's suggestion */
   resetEstimate: (estimateId: string) => void
   confirmEstimate: (estimateId: string) => Result
@@ -102,7 +104,6 @@ export const useConsignmentStore = create<ConsignmentState>((set, get) => {
       if (!routeRunsOn(route, deliveryDate)) return { ok: false, message: `สาย ${route.code} ไม่วิ่งวัน${dayNames[dayOfWeekOf(deliveryDate)]}` }
       const existing = get().estimates.find((e) => e.consignmentRouteId === routeId && e.deliveryDate === deliveryDate && e.status !== 'cancelled')
       if (existing) return { ok: false, message: `สาย ${route.code} มียอดประเมินวันที่นี้แล้ว (${existing.estimateNumber})` }
-      const { consignmentWeeks, shopStock } = useSalesStore.getState()
       const sameDay = get().estimates.filter((e) => e.deliveryDate === deliveryDate).length
       const estimate: ConsignmentEstimate = {
         id: `ce-${Date.now()}`,
@@ -111,12 +112,8 @@ export const useConsignmentStore = create<ConsignmentState>((set, get) => {
         consignmentRouteId: routeId,
         status: 'draft',
         confirmedAt: null,
-        lines: buildEstimateLines(
-          route,
-          getFinishedGoods(true).map((fg) => fg.id),
-          consignmentWeeks,
-          shopStock,
-        ),
+        // Starts empty: staff add the products for each shop themselves
+        lines: [],
       }
       set({ estimates: [estimate, ...get().estimates] })
       return { ok: true, id: estimate.id }
@@ -127,6 +124,18 @@ export const useConsignmentStore = create<ConsignmentState>((set, get) => {
         ...e,
         lines: e.lines.map((l) => (l.customerId === customerId && l.finishedGoodId === finishedGoodId ? { ...l, estimatedQuantity: Math.max(0, Math.round(quantity) || 0) } : l)),
       })),
+
+    addEstimateLine: (estimateId, customerId, finishedGoodId) => {
+      const estimate = get().estimates.find((e) => e.id === estimateId)
+      const route = get().routes.find((r) => r.id === estimate?.consignmentRouteId)
+      if (!estimate || !route || estimate.lines.some((l) => l.customerId === customerId && l.finishedGoodId === finishedGoodId)) return
+      const { consignmentWeeks, shopStock } = useSalesStore.getState()
+      const suggestedQuantity = suggestQuantity({ customerId, finishedGoodId, runsPerWeek: route.daysOfWeek.length, weeks: consignmentWeeks, shopStock })
+      patchEstimate(estimateId, (e) => ({ ...e, lines: [...e.lines, { customerId, finishedGoodId, suggestedQuantity, estimatedQuantity: suggestedQuantity }] }))
+    },
+
+    removeEstimateLine: (estimateId, customerId, finishedGoodId) =>
+      patchEstimate(estimateId, (e) => ({ ...e, lines: e.lines.filter((l) => !(l.customerId === customerId && l.finishedGoodId === finishedGoodId)) })),
 
     resetEstimate: (estimateId) => patchEstimate(estimateId, (e) => ({ ...e, lines: e.lines.map((l) => ({ ...l, estimatedQuantity: l.suggestedQuantity })) })),
 
