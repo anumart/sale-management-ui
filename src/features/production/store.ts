@@ -56,7 +56,8 @@ export const useProductionStore = create<ProductionState>((set, get) => ({
     const year = new Date().getFullYear()
     const seq = 101 + orders.length
     const order: ProductionOrder = {
-      id: `prod-${Date.now()}-${input.finishedGoodId}`,
+      // seq keeps ids unique when several orders for the same product are created in one click
+      id: `prod-${Date.now()}-${seq}-${input.finishedGoodId}`,
       orderNumber: `PROD-${year}-${String(seq).padStart(4, '0')}`,
       source: input.source,
       customerOrderId: input.customerOrderId,

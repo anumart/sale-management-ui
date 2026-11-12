@@ -1,19 +1,23 @@
 import { Link } from '@tanstack/react-router'
 import { PageHeading } from '@/components/layout/PageHeading'
-import { IconCheck } from '@/components/icons'
-import { Alert, Button, Card, CardHeader, EmptyState, StatusPill } from '@/components/ui'
+import { IconCheck, IconClose } from '@/components/icons'
+import { Alert, Button, Card, CardHeader, DataTable, EmptyState, Select, StatusPill, type DataTableColumn } from '@/components/ui'
 import { controlClass } from '@/components/ui/FormField'
+import { getFinishedGoods } from '@/features/catalog/store'
 import { useDeliveryStore } from '@/features/logistics/deliveryStore'
 import { dayLabel } from '@/features/logistics/types'
 import { finishedGoodById } from '@/features/procurement/mockData'
+import { CombosCard } from '@/features/production/CapacityPage'
 import { useProductionStore } from '@/features/production/store'
 import { cn } from '@/lib/cn'
 import { confirm } from '@/stores/confirmStore'
 import { toast } from '@/stores/toastStore'
 import { useConsignmentStore } from './consignmentStore'
+import { EstimateStockCard } from './EstimateStockCard'
 import { estimateStatusLabel, estimateStatusTone } from './EstimatesPage'
 import { dayOfWeekOf, estimateQuantity, estimateTotals } from './estimates'
 import { customerById } from './store'
+import type { ConsignmentEstimateLine } from './types'
 import { formatDate } from './utils'
 
 export function EstimateDetailPage({ estimateId }: { estimateId: string }) {
@@ -22,6 +26,8 @@ export function EstimateDetailPage({ estimateId }: { estimateId: string }) {
   const allEstimates = useConsignmentStore((s) => s.estimates)
   const routes = useConsignmentStore((s) => s.routes)
   const setEstimateQty = useConsignmentStore((s) => s.setEstimateQty)
+  const addEstimateLine = useConsignmentStore((s) => s.addEstimateLine)
+  const removeEstimateLine = useConsignmentStore((s) => s.removeEstimateLine)
   const resetEstimate = useConsignmentStore((s) => s.resetEstimate)
   const confirmEstimate = useConsignmentStore((s) => s.confirmEstimate)
   const cancelEstimate = useConsignmentStore((s) => s.cancelEstimate)
@@ -39,10 +45,11 @@ export function EstimateDetailPage({ estimateId }: { estimateId: string }) {
     )
   }
 
-  const shopIds = [...new Set(estimate.lines.map((l) => l.customerId))]
+  // Shops follow the route, so a shop stays on screen even after all its products are removed
+  const shopIds = [...route.stops].sort((a, b) => a.sequence - b.sequence).map((s) => s.customerId)
   const productIds = [...new Set(estimate.lines.map((l) => l.finishedGoodId))]
   const totals = estimateTotals(estimate)
-  const cell = (customerId: string, finishedGoodId: string) => estimate.lines.find((l) => l.customerId === customerId && l.finishedGoodId === finishedGoodId)!
+  const activeProducts = getFinishedGoods(true)
   const linked = productionOrders.filter((p) => p.consignmentEstimateId === estimate.id)
   const plannedFor = (finishedGoodId: string) => linked.filter((p) => p.finishedGoodId === finishedGoodId).reduce((sum, p) => sum + p.plannedQuantity, 0)
 
@@ -60,6 +67,33 @@ export function EstimateDetailPage({ estimateId }: { estimateId: string }) {
       .map((e) => ({ customerId, other: routes.find((r) => r.id === e.consignmentRouteId)?.code ?? '' }))
   })
   const changedAfterProduction = linked.length > 0 && [...totals].some(([id, qty]) => plannedFor(id) !== qty)
+
+  const columnsFor = (customerId: string): DataTableColumn<ConsignmentEstimateLine>[] => [
+    { key: 'name', label: 'สินค้า', sortable: false, render: (l) => <span className="font-medium">{finishedGoodById(l.finishedGoodId)?.name}</span> },
+    {
+      key: 'suggested',
+      label: 'แนะนำ',
+      sortable: false,
+      render: (l) => <span className={cn('tabular-nums', l.estimatedQuantity === l.suggestedQuantity ? 'text-muted' : 'text-warning-fg')}>{l.suggestedQuantity}</span>,
+    },
+    {
+      key: 'qty',
+      label: 'ประเมิน',
+      sortable: false,
+      render: (l) => (
+        <input
+          type="number"
+          min={0}
+          inputMode="numeric"
+          aria-label={`${customerById(customerId)?.name} ${finishedGoodById(l.finishedGoodId)?.name}`}
+          disabled={!editable}
+          value={l.estimatedQuantity}
+          onChange={(e) => setEstimateQty(estimate.id, customerId, l.finishedGoodId, Number(e.target.value))}
+          className={cn(controlClass(), 'h-9 w-24 px-3 text-right tabular-nums')}
+        />
+      ),
+    },
+  ]
 
   const confirmIt = () => {
     const res = confirmEstimate(estimate.id)
@@ -97,70 +131,80 @@ export function EstimateDetailPage({ estimateId }: { estimateId: string }) {
         </Alert>
       )}
 
+      <EstimateStockCard date={estimate.deliveryDate} excludeEstimateId={estimate.id} className="mb-6" />
+
+      <CombosCard plansOpenInDrawer className="mb-6" />
+
       <Card className="mb-6">
         <CardHeader
           title="ประเมินรายร้านและสินค้า"
-          subtitle="ตัวเลขเริ่มต้นมาจากยอดขายเฉลี่ยของร้านหักของที่ยังเหลือในร้าน แก้ได้ทุกช่อง · 0 = ไม่ลงสินค้านี้"
+          subtitle="ตัวเลขเริ่มต้นมาจากยอดขายเฉลี่ยของร้านหักของที่ยังเหลือในร้าน แก้ได้ทุกช่อง เพิ่มหรือเอาสินค้าของแต่ละร้านออกได้"
           action={<StatusPill tone={estimateStatusTone[estimate.status]}>{estimateStatusLabel[estimate.status]}</StatusPill>}
         />
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] border-separate text-sm [border-spacing:0_0.375rem]">
-            <thead>
-              <tr className="text-left text-muted">
-                <th className="py-1.5 pr-3 pl-3.5 font-light">ร้าน</th>
-                {productIds.map((id) => (
-                  <th key={id} className="py-1.5 pr-3 font-light">
-                    {finishedGoodById(id)?.name}
-                  </th>
-                ))}
-                <th className="py-1.5 pr-3.5 text-right font-light">รวมร้าน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shopIds.map((customerId) => (
-                <tr key={customerId}>
-                  <td className="rounded-l-[0.875rem] border-y border-l border-line py-2 pr-3 pl-3.5">
-                    <p className="font-medium">{customerById(customerId)?.name}</p>
-                    <p className="text-muted">{customerById(customerId)?.chain}</p>
-                  </td>
-                  {productIds.map((id) => {
-                    const line = cell(customerId, id)
-                    return (
-                      <td key={id} className="border-y border-line py-2 pr-3">
-                        <input
-                          type="number"
-                          min={0}
-                          inputMode="numeric"
-                          aria-label={`${customerById(customerId)?.name} ${finishedGoodById(id)?.name}`}
-                          disabled={!editable}
-                          value={line.estimatedQuantity}
-                          onChange={(e) => setEstimateQty(estimate.id, customerId, id, Number(e.target.value))}
-                          className={cn(controlClass(), 'h-10 w-24 px-3 text-right tabular-nums')}
-                        />
-                        <p className={cn('mt-0.5 text-right text-xs', line.estimatedQuantity === line.suggestedQuantity ? 'text-muted' : 'text-warning-fg')}>แนะนำ {line.suggestedQuantity}</p>
-                      </td>
-                    )
-                  })}
-                  <td className="rounded-r-[0.875rem] border-y border-r border-line py-2 pr-3.5 text-right font-medium tabular-nums">
-                    {estimate.lines.filter((l) => l.customerId === customerId).reduce((sum, l) => sum + l.estimatedQuantity, 0)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="font-semibold">
-                <td className="py-2 pr-3 pl-3.5">รวมทั้งสาย</td>
-                {productIds.map((id) => (
-                  <td key={id} className="py-2 pr-3 tabular-nums">
-                    {totals.get(id) ?? 0}
-                  </td>
-                ))}
-                <td className="py-2 pr-3.5 text-right tabular-nums">{estimateQuantity(estimate)}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {shopIds.map((customerId) => {
+            const shop = customerById(customerId)
+            const shopLines = estimate.lines.filter((l) => l.customerId === customerId)
+            const shopTotal = shopLines.reduce((sum, l) => sum + l.estimatedQuantity, 0)
+            const addable = activeProducts.filter((fg) => !shopLines.some((l) => l.finishedGoodId === fg.id))
+            return (
+              <section key={customerId} className="rounded-[0.875rem] border border-line p-4">
+                <div className="min-w-0">
+                  <h3 className="font-medium">{shop?.name}</h3>
+                  <p className="text-sm text-muted">{shop?.chain}</p>
+                </div>
+
+                <div className="mt-3">
+                  <DataTable
+                    columns={columnsFor(customerId)}
+                    rows={shopLines}
+                    rowKey={(l) => l.finishedGoodId}
+                    sortable={false}
+                    emptyTitle="ยังไม่มีสินค้า"
+                    emptyDescription={editable ? 'เลือก "+ เพิ่มสินค้า" ด้านล่างเพื่อเริ่มประเมิน' : undefined}
+                    renderActions={
+                      editable
+                        ? (l) => (
+                            <Button size="sm" variant="soft" iconOnly outlined aria-label={`เอา ${finishedGoodById(l.finishedGoodId)?.name} ออก`} tooltip="เอาสินค้าออก" onClick={() => removeEstimateLine(estimate.id, customerId, l.finishedGoodId)}>
+                              <IconClose />
+                            </Button>
+                          )
+                        : undefined
+                    }
+                  />
+                  {shopLines.length > 0 && (
+                    <p className="mt-2 flex justify-between px-3.5 text-sm font-semibold">
+                      <span>รวมร้าน</span>
+                      <span className="tabular-nums">{shopTotal}</span>
+                    </p>
+                  )}
+                </div>
+
+                {editable && addable.length > 0 && (
+                  <Select
+                    aria-label={`เพิ่มสินค้าให้ ${shop?.name}`}
+                    placeholder="+ เพิ่มสินค้า"
+                    value=""
+                    onChange={(id) => id && addEstimateLine(estimate.id, customerId, id)}
+                    options={addable.map((fg) => ({ value: fg.id, label: fg.name }))}
+                    className="mt-3"
+                  />
+                )}
+              </section>
+            )
+          })}
         </div>
+
+        <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-line pt-4 text-sm">
+          <li className="font-semibold">รวมทั้งสาย {estimateQuantity(estimate)}</li>
+          {productIds.map((id) => (
+            <li key={id} className="tabular-nums">
+              <span className="text-muted">{finishedGoodById(id)?.name} </span>
+              {totals.get(id) ?? 0}
+            </li>
+          ))}
+        </ul>
 
         {estimate.status !== 'cancelled' && (
           <footer className="mt-5 flex flex-wrap justify-end gap-3 border-t border-line pt-5">

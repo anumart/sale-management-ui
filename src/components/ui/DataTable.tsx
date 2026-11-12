@@ -44,6 +44,8 @@ export interface DataTableProps<T, K extends string | number = string | number> 
   rows: T[]
   rowKey: (row: T) => K
   rowClassName?: (row: T) => string | undefined
+  /** Makes rows clickable (mouse and Enter/Space); clicks on buttons inside a row don't trigger it. */
+  onRowClick?: (row: T) => void
 
   emptyTitle: string
   emptyDescription?: string
@@ -86,6 +88,7 @@ export function DataTable<T, K extends string | number = string | number>({
   rows,
   rowKey,
   rowClassName,
+  onRowClick,
   emptyTitle,
   emptyDescription,
   loading,
@@ -270,8 +273,21 @@ export function DataTable<T, K extends string | number = string | number>({
                   <tr
                     key={id}
                     style={{ animationDelay: `${Math.min(rowIndex, 8) * 35}ms` }}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onClick={onRowClick ? (e) => !(e.target as HTMLElement).closest('button, a, input, label') && onRowClick(row) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault()
+                              onRowClick(row)
+                            }
+                          }
+                        : undefined
+                    }
                     className={cn(
                       'animate-row-in transition-colors duration-300 ease-smooth',
+                      onRowClick && 'cursor-pointer',
                       rowClassName?.(row) ?? (isSelected ? 'bg-primary-soft' : 'hover:bg-hover'),
                     )}
                   >
